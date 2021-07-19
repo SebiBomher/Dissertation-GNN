@@ -1,6 +1,5 @@
-from Scripts.utilities import MSE
 from Scripts.models import ST_GCN
-from Scripts.learn import train_val_and_test
+from Scripts.learn import train_val_and_test,MSE
 from Scripts.data_proccess import get_dataset, get_dataset_experimental
 from torch.nn import MSELoss,L1Loss
 from torch.optim import Adam,SGD,RMSprop,Adamax

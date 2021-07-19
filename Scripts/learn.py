@@ -2,7 +2,11 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 import numpy as np
 import copy
+import torch
 
+def MSE(y_true,y_pred):
+    return torch.mean((y_pred-y_true)**2)
+    
 def train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion):
     model.train()
     best_val_loss = np.inf
@@ -35,7 +39,7 @@ def test(model,dataset,criterion):
     loss = loss.item()
     return loss
 
-def train_val_and_test(model,train_dataset,validation_dataset,test_dataset,,optimizer,nb_epoch,criterion):
+def train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,criterion):
     best_model = train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion)
     test_loss = test(best_model,test_dataset,criterion)
     print("{0}: {1}".format(criterion.__name__,test_loss))
