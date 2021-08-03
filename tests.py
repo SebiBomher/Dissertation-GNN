@@ -1,41 +1,52 @@
+import os
+import numpy as np
 from Scripts.models import ST_GCN
-from Scripts.learn import train_val_and_test,MSE
-from Scripts.data_proccess import get_dataset, get_dataset_experimental
-from torch.nn import MSELoss,L1Loss
+from Scripts.learn import learn, train_val_and_test,MSE,MAPE,MAE,RMSE
+from Scripts.data_proccess import get_dataset, get_dataset_experimental, get_experimental_data, get_graph_info
+import torch
 from torch.optim import Adam,SGD,RMSprop,Adamax
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+import skopt
+from ray import tune
+from ray.tune.integration.pytorch_lightning import TuneReportCallback
+import pytorch_lightning as pl
+import torch.nn as nn
+from functools import partial
+from ray.tune.schedulers import ASHAScheduler
 
-# Not Relevant for hypertuning, will implement regularization
-learning_rate = 0.01
-# [8,16,32,64]
-batch_size = 16
-# [1,3,6,9]
-time_steps = 1
-# [8,16,32,64,128]
-hidden_channels = 32
-#FIXED, Not Relevant for hypertuning
-num_nodes = 8
-#FIXED, Not Relevant for hypertuning
-num_features = 3
-# [1,3,5,7]
-kernel_size = 1
-# [1,3,5,7]
-K = 1
-# Not Relevant for hypertuning, will implement regularization
-nb_epoch = 200
-# MSE,MAE,MAPE,RMSE
-# Not Relevant for hypertuning
-criterion = MSELoss()
-# Adam,SGD,RMSprop,Adamax
-optimizer_type = "Adam"
+if __name__ == '__main__':
+    checkpoint_dir = "E:\\FacultateMasterAI\\Dissertation-GNN\\checkpoints"
+    num_samples = 16
+    config = {
+        "batch_size": tune.choice([8,16,32,64,128]),
+        "hidden_channels": tune.choice([8,16,32,64,128]),
+        "K" : tune.choice([1,3,5,7]),
+        "epsilon" : tune.choice([0.1, 0.3, 0.5, 0.7]),
+        "optimizer_type" : tune.choice(["Adam","SGD","RMSprop","Adamax"]),
+        "lamda" : tune.choice([1, 3, 5, 10])
+        }
+    nb_epoch = 200
+    time_steps = [1,3,5,7]
+    criterions = [MSE,MAE,MAPE,RMSE]
+    # for crit in criterions:
+        # for time_step in time_steps:
 
-train_dataset, validation_dataset, test_dataset = get_dataset_experimental(path="Data", train_test_ratio = 0.8,train_validation_ratio = 0.8,batch_size=batch_size,time_steps=time_steps)
+    scheduler = ASHAScheduler(
+        max_t=nb_epoch,
+        grace_period=1,
+        reduction_factor=2)
 
-model = ST_GCN(node_features = num_features,
-                    num_nodes = num_nodes,
-                    hidden_channels = hidden_channels,
-                    kernel_size = kernel_size,
-                    K = K)
+    result = tune.run(
+        tune.with_parameters(learn, checkpoint_dir=checkpoint_dir, time_step = 1, criterion = MSE),
+        resources_per_trial={"cpu": 8, "gpu": 1},
+        config=config,
+        metric="loss",
+        mode="min",
+        num_samples=num_samples,
+        scheduler=scheduler
+    )
 
-optimizer = Adam(model.parameters(), lr=learning_rate)
- 
-train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,MSE)
+    best_trial = result.get_best_trial("loss", "min", "last")
+    print("Best trial config: {}".format(best_trial.config))
+    print("Best trial final validation loss: {}".format(best_trial.last_result["loss"]))
+            # print("time step : {0} ; criterion : {1} ; loss : {2}".format(str(time_step),str(criterions.__name__),str(score)))
