@@ -2,7 +2,6 @@ from ray import tune
 from torch import nn
 from Scripts.models import ST_GCN
 from Scripts.data_proccess import get_dataset, get_dataset_experimental
-from matplotlib import pyplot as plt
 from tqdm import tqdm
 import numpy as np
 import copy
@@ -23,7 +22,7 @@ def MAE(y_pred, y_true):
 def MSE(y_true,y_pred):
     return torch.mean((y_pred-y_true)**2)
 
-def train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience,net):
+def train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience):
     model.train()
     best_val_loss = np.inf
     val_model = model
@@ -31,11 +30,17 @@ def train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion,sc
     for epoch in tqdm(range(nb_epoch)):
         loss = 0
         for time, snapshot in enumerate(train_dataset):
+            
+            print(np.array(snapshot.x).shape)
+            print(np.array(snapshot.edge_index).shape)
+            print(np.array(snapshot.edge_attr).shape)
+            print(np.array(snapshot.y).shape)
+
             y_hat = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr)
             loss += criterion(y_hat,snapshot.y)
 
         # Validation Step at epoch end
-        val_loss = val(model,validation_dataset,criterion,epoch,optimizer,net)
+        val_loss = val(model,validation_dataset,criterion,epoch,optimizer)
         if val_loss < best_val_loss:
             val_model = copy.deepcopy(model)
             best_val_loss = val_loss
@@ -53,7 +58,7 @@ def train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion,sc
         optimizer.zero_grad()
     return val_model
         
-def val(model,dataset,criterion,epoch,optimizer,net):
+def val(model,dataset,criterion,epoch,optimizer):
     model.eval()
     loss = 0
     for time, snapshot in enumerate(dataset):
@@ -65,7 +70,7 @@ def val(model,dataset,criterion,epoch,optimizer,net):
     with tune.checkpoint_dir(step=epoch) as checkpoint_dir:
         path = os.path.join(checkpoint_dir, "checkpoint")
         torch.save(
-            (net.state_dict(), optimizer.state_dict()), path)
+            (model.state_dict(), optimizer.state_dict()), path)
 
     tune.report(loss=loss)
 
@@ -79,25 +84,25 @@ def test(model,dataset,criterion):
         loss += criterion(y_hat,snapshot.y)
     loss = loss / (time+1)
     loss = loss.item()
-    return loss
+    print("Best trial test set loss: {}".format(loss))
 
-def train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience,net):
-    best_model = train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience,net)
-    test_loss = test(best_model,test_dataset,criterion)
-    return best_model,test_loss
+def train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience):
+    best_model = train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience)
+    test(best_model,test_dataset,criterion)
+    
 
-def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE):
+def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch = 200):
     
     learning_rate = 0.01
     num_nodes = 8
     num_features = 3
     kernel_size = 1
-    nb_epoch = 200
-    EarlyStoppingPatience = 20
-    path_model_save = "E:\\FacultateMasterAI\\Dissertation-GNN\\models"
+    EarlyStoppingPatience = 10
     path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    # train_dataset, validation_dataset, test_dataset, num_nodes = get_dataset(path=path_data, train_test_ratio = 0.8, train_validation_ratio = 0.8,batch_size=config["batch_size"],time_steps=config["time_steps"],epsilon=config["epsilon"],lamda=config["lamda"])
-    # print(num_nodes)
+    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    graph_info_txt = "d07_text_meta_2021_03_27.txt"
+
+    train_dataset, validation_dataset, test_dataset, num_nodes = get_dataset(path=path_data,path_proccessed_data=path_processed_data,graph_info_txt=graph_info_txt, train_test_ratio = 0.8, train_validation_ratio = 0.8,batch_size=config["batch_size"],time_steps=time_step,epsilon=config["epsilon"],lamda=config["lamda"])
     
     model = ST_GCN(node_features = num_features,
                         num_nodes = num_nodes,
@@ -114,14 +119,12 @@ def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE):
 
     if config["optimizer_type"] == "Adam":
         optimizer = Adam(model.parameters(), lr=learning_rate)
-    elif config["optimizer_type"] == "SGD":
-        optimizer = SGD(model.parameters(), lr=learning_rate)
     elif config["optimizer_type"] == "RMSprop":
         optimizer = RMSprop(model.parameters(), lr=learning_rate)
     elif config["optimizer_type"] == "Adamax":
         optimizer = Adamax(model.parameters(), lr=learning_rate)
     
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, threshold=0.00000001, threshold_mode='abs')
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, threshold=0.00000001, threshold_mode='abs')
 
     if checkpoint_dir:
         checkpoint = os.path.join(checkpoint_dir, "checkpoint")
@@ -131,6 +134,4 @@ def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE):
 
     train_dataset, validation_dataset, test_dataset = get_dataset_experimental(path=path_data, train_test_ratio = 0.8, train_validation_ratio = 0.8,batch_size=config["batch_size"],time_steps=time_step)
 
-    trained_model,test_loss = train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience,model)
-    print("{0}: {1}".format(config["optimizer_type"].__name__,test_loss))
-    torch.save(trained_model, os.path.join(path_model_save,"{0}_{1}_{2}_{3}_{4}_{5}__{6}.pth".format(str(config["batch_size"]),str(config["hidden_channels"]),str(config["K"]),str(config["epsilon"]),str(config["lamda"]),str(config["optimizer_type"]),str(test_loss))))
+    train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience)

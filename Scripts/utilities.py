@@ -7,4 +7,4 @@ def get_adjency_matrix_weight(p1,p2,epsilon,lamda):
     if weight >= epsilon:
         return weight
     else:
-        return weight
+        return 0
