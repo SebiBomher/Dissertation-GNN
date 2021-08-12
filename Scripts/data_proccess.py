@@ -51,13 +51,12 @@ def save_graph_info(info_data,save_data,epsilon,lamda,empty_nodes):
     np.save(name_index,edge_index)
     np.save(name_weight,edge_weight)
 
-def get_dataset(path,path_proccessed_data,graph_info_txt,train_test_ratio,train_validation_ratio,batch_size,time_steps,epsilon,lamda):
+def get_dataset(path,path_proccessed_data,graph_info_txt,train_ratio,test_ratio,val_ratio,batch_size,time_steps,epsilon,lamda):
     num_nodes = get_number_of_nodes(os.path.join(path,graph_info_txt))
     empty_nodes = get_empty_nodes(path,num_nodes)
     num_nodes -= len(empty_nodes)
     DataTraffic = CustomStaticGraphTemporalSignal(path_proccessed_data,time_steps,batch_size,lamda,epsilon)
-    train,test = split_dataset(DataTraffic, train_ratio=train_test_ratio)
-    train,val = split_dataset(train, train_ratio=train_validation_ratio)
+    train,test,val = split_dataset(DataTraffic, train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
     return train,val,test,num_nodes
 
 def get_dataset_experimental(path,train_test_ratio,train_validation_ratio,batch_size,time_steps):

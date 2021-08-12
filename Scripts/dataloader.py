@@ -10,21 +10,36 @@ Edge_Index = Union[np.ndarray, None]
 Edge_Weight = Union[np.ndarray, None]
 
 
-def split_dataset(data_iterator, train_ratio: float=0.8):
+def split_dataset(data_iterator, train_ratio: float=0.6, test_ratio: float = 0.2, val_ratio: float = 0.2):
+    assert train_ratio + test_ratio + val_ratio == 1
+    time_train = int(train_ratio*data_iterator.snapshot_count)
+    time_test = time_train + int(test_ratio*data_iterator.snapshot_count)
 
-    train_snapshots = int(train_ratio*data_iterator.snapshot_count)
+    train_iterator = CustomStaticGraphTemporalSignal(data_iterator.proccessed_data_path,
+                                                data_iterator.time_steps,
+                                                data_iterator.batch_size,
+                                                data_iterator.lamda,
+                                                data_iterator.epsilon,
+                                                0,
+                                                time_train + 1)
 
-    train_iterator = CustomStaticGraphTemporalSignal(data_iterator.edge_index,
-                                                data_iterator.edge_weight,
-                                                data_iterator.features[0:train_snapshots],
-                                                data_iterator.targets[0:train_snapshots])
+    test_iterator = CustomStaticGraphTemporalSignal(data_iterator.proccessed_data_path,
+                                                data_iterator.time_steps,
+                                                data_iterator.batch_size,
+                                                data_iterator.lamda,
+                                                data_iterator.epsilon,
+                                                time_train + 1,
+                                                time_test)
 
-    test_iterator = CustomStaticGraphTemporalSignal(data_iterator.edge_index,
-                                                data_iterator.edge_weight,
-                                                data_iterator.features[train_snapshots:],
-                                                data_iterator.targets[train_snapshots:])
+    val_iterator = CustomStaticGraphTemporalSignal(data_iterator.proccessed_data_path,
+                                                data_iterator.time_steps,
+                                                data_iterator.batch_size,
+                                                data_iterator.lamda,
+                                                data_iterator.epsilon,
+                                                time_test + 1,
+                                                data_iterator.snapshot_count)
     
-    return train_iterator, test_iterator
+    return train_iterator, test_iterator, val_iterator
 
 class CustomStaticGraphTemporalSignal(object):
 
@@ -35,18 +50,24 @@ class CustomStaticGraphTemporalSignal(object):
         features (List of Numpy arrays): List of node feature tensors.
         targets (List of Numpy arrays): List of node label (target) tensors.
     """
-    def __init__(self,proccessed_data_path,time_steps,batch_size,lamda,epsilon):
+    def __init__(self,proccessed_data_path,time_steps,batch_size,lamda,epsilon,time_start = 0, time_stop = -1):
         self.time_steps = time_steps
         self.batch_size = batch_size
         self.lamda = lamda
         self.epsilon = epsilon
+        self.time_start = time_start
+        self.time_stop = time_stop
         self.proccessed_data_path = proccessed_data_path
+        self._set_snapshot_count()
         self._set_edge_index()
         self._set_edge_weight()
         self._check_temporal_consistency()
-    
+
+    def _set_snapshot_count(self):
+        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size))),"X_*.npy"))
+
     def _check_temporal_consistency(self):
-        assert len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size)),"X_*.npy"))) == len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size)),"Y_*.npy"))) , "Temporal dimension inconsistency."
+        assert len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size))),"X_*.npy")) == len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size))),"Y_*.npy")) , "Temporal dimension inconsistency."
 
     def _set_edge_index(self):
         name_index = os.path.join(self.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}.npy'.format(str(self.epsilon),str(self.lamda)))
@@ -101,14 +122,14 @@ class CustomStaticGraphTemporalSignal(object):
         return snapshot
 
     def __next__(self):
-        if self.t < len(self.features):
+        if self.t < self.time_stop:
             snapshot = self.__get_item__(self.t)
             self.t = self.t + 1
             return snapshot
         else:
-            self.t = 0
+            self.t = self.time_start
             raise StopIteration
 
     def __iter__(self):
-        self.t = 0
+        self.t = self.time_start
         return self

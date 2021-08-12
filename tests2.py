@@ -20,7 +20,6 @@ if __name__ == '__main__':
         "epsilon" : 0.5,
         "optimizer_type" : "Adam",
         "lamda" : 5}
-
     nb_epoch = 100
     time_steps = [1,3,5,7]
     criterions = [MSE,MAE,MAPE,RMSE]

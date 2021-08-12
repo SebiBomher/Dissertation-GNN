@@ -30,12 +30,6 @@ def train(model,train_dataset,validation_dataset,optimizer,nb_epoch,criterion,sc
     for epoch in tqdm(range(nb_epoch)):
         loss = 0
         for time, snapshot in enumerate(train_dataset):
-            
-            print(np.array(snapshot.x).shape)
-            print(np.array(snapshot.edge_index).shape)
-            print(np.array(snapshot.edge_attr).shape)
-            print(np.array(snapshot.y).shape)
-
             y_hat = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr)
             loss += criterion(y_hat,snapshot.y)
 
@@ -98,11 +92,11 @@ def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch 
     num_features = 3
     kernel_size = 1
     EarlyStoppingPatience = 10
-    path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
+    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
 
-    train_dataset, validation_dataset, test_dataset, num_nodes = get_dataset(path=path_data,path_proccessed_data=path_processed_data,graph_info_txt=graph_info_txt, train_test_ratio = 0.8, train_validation_ratio = 0.8,batch_size=config["batch_size"],time_steps=time_step,epsilon=config["epsilon"],lamda=config["lamda"])
+    train_dataset, validation_dataset, test_dataset, num_nodes = get_dataset(path=path_data,path_proccessed_data=path_processed_data,graph_info_txt=graph_info_txt, train_ratio = 0.6, test_ratio = 0.2, val_ratio = 0.2, batch_size=config["batch_size"],time_steps=time_step,epsilon=config["epsilon"],lamda=config["lamda"])
     
     model = ST_GCN(node_features = num_features,
                         num_nodes = num_nodes,
@@ -132,6 +126,6 @@ def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch 
         model.load_state_dict(model_state)
         optimizer.load_state_dict(optimizer_state)
 
-    train_dataset, validation_dataset, test_dataset = get_dataset_experimental(path=path_data, train_test_ratio = 0.8, train_validation_ratio = 0.8,batch_size=config["batch_size"],time_steps=time_step)
+    # train_dataset, validation_dataset, test_dataset = get_dataset_experimental(path=path_data, train_test_ratio = 0.8, train_validation_ratio = 0.8,batch_size=config["batch_size"],time_steps=time_step)
 
     train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience)
