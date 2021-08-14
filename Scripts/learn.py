@@ -1,7 +1,7 @@
 from ray import tune
 from torch import nn
-from Scripts.models import ST_GCN
-from Scripts.data_proccess import get_dataset, get_dataset_experimental
+from Scripts.models import STConvModel
+from Scripts.data_proccess import get_dataset_experimental_STCONV
 from tqdm import tqdm
 import numpy as np
 import copy
@@ -9,6 +9,7 @@ import torch
 import os
 from torch.optim import Adam,SGD,RMSprop,Adamax
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from Scripts.STConvDataProcess import get_dataset_STCONV
 
 def RMSE(y_pred,y_true):
     return torch.sqrt(torch.mean((y_pred-y_true)**2))
@@ -85,8 +86,7 @@ def train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optim
     test(best_model,test_dataset,criterion)
     
 
-def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch = 200):
-    
+def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch = 200, model_type = "STCONV",nodes_size="Full"):
     learning_rate = 0.01
     num_nodes = 8
     num_features = 3
@@ -95,14 +95,24 @@ def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch 
     path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
     path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
-
-    train_dataset, validation_dataset, test_dataset, num_nodes = get_dataset(path=path_data,path_proccessed_data=path_processed_data,graph_info_txt=graph_info_txt, train_ratio = 0.6, test_ratio = 0.2, val_ratio = 0.2, batch_size=config["batch_size"],time_steps=time_step,epsilon=config["epsilon"],lamda=config["lamda"])
-    
-    model = ST_GCN(node_features = num_features,
-                        num_nodes = num_nodes,
-                        hidden_channels = config["hidden_channels"],
-                        kernel_size = kernel_size,
-                        K = config["K"])
+    if model_type == "STCONV":
+        train_dataset, validation_dataset, test_dataset, num_nodes = get_dataset_STCONV(path=path_data,
+                                                                                        path_proccessed_data=path_processed_data,
+                                                                                        graph_info_txt=graph_info_txt, 
+                                                                                        train_ratio = 0.6, 
+                                                                                        test_ratio = 0.2, 
+                                                                                        val_ratio = 0.2, 
+                                                                                        batch_size=config["batch_size"],
+                                                                                        time_steps=time_step,
+                                                                                        epsilon=config["epsilon"],
+                                                                                        lamda=config["lamda"],
+                                                                                        nodes_size=nodes_size)
+        
+        model = STConvModel(node_features = num_features,
+                            num_nodes = num_nodes,
+                            hidden_channels = config["hidden_channels"],
+                            kernel_size = kernel_size,
+                            K = config["K"])
 
     device = "cpu"
     if torch.cuda.is_available():
@@ -126,6 +136,10 @@ def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch 
         model.load_state_dict(model_state)
         optimizer.load_state_dict(optimizer_state)
 
-    # train_dataset, validation_dataset, test_dataset = get_dataset_experimental(path=path_data, train_test_ratio = 0.8, train_validation_ratio = 0.8,batch_size=config["batch_size"],time_steps=time_step)
+    train_dataset, validation_dataset, test_dataset = get_dataset_experimental_STCONV(path=path_data,
+                                                                                    train_test_ratio = 0.8, 
+                                                                                    train_validation_ratio = 0.8,
+                                                                                    batch_size=config["batch_size"],
+                                                                                    time_steps=time_step)
 
     train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience)
