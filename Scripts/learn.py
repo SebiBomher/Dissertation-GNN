@@ -1,5 +1,6 @@
 from ray import tune
 from torch import nn
+from torch.functional import Tensor
 from Scripts.models import STConvModel
 from Scripts.data_proccess import get_dataset_experimental_STCONV
 from tqdm import tqdm
@@ -9,7 +10,57 @@ import torch
 import os
 from torch.optim import Adam,SGD,RMSprop,Adamax
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from Scripts.STConvDataProcess import get_dataset_STCONV
+from Scripts.datasetsClasses import STConvDataset
+from enum import Enum
+
+class LossFunction(Enum):
+    r"""
+    
+    """
+    RMSE = 0
+    MAPE = 1
+    MAE = 2
+    MSE = 3
+
+class ModelType(Enum):
+    r"""
+    
+    """
+    STCONV = 0
+    ASTGCN = 1
+    MSTGCN = 2
+    GMAN = 3
+
+class OptimiserType(Enum):
+    r"""
+    
+    """
+    Adam = 0
+    RMSprop = 1
+    Adamax = 2
+    SGD = 3
+
+class LossFunction():
+    def __init__(self,function_type : LossFunction, y_true,y_pred):
+        self.function_type = function_type
+        self.y_true = y_true
+        self.y_pred = y_pred
+
+    def RMSE(y_pred,y_true) -> Tensor:
+        return torch.sqrt(torch.mean((y_pred-y_true)**2))
+        
+    def MAPE(y_pred, y_true) -> Tensor:
+        return torch.mean(torch.abs((y_true - y_pred) / y_true))
+
+    def MAE(y_pred, y_true) -> Tensor:
+        return torch.mean(torch.abs((y_true - y_pred)))
+
+    def MSE(y_true,y_pred) -> Tensor:
+        return torch.mean((y_pred-y_true)**2)
+
+class Learn():
+    def __init__(self):
+        self.t = 1
 
 def RMSE(y_pred,y_true):
     return torch.sqrt(torch.mean((y_pred-y_true)**2))
@@ -96,7 +147,7 @@ def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch 
     path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
     if model_type == "STCONV":
-        train_dataset, validation_dataset, test_dataset, num_nodes = get_dataset_STCONV(path=path_data,
+        train_dataset, validation_dataset, test_dataset = STConvDataset.get_dataset_STCONV(path=path_data,
                                                                                         path_proccessed_data=path_processed_data,
                                                                                         graph_info_txt=graph_info_txt, 
                                                                                         train_ratio = 0.6, 
@@ -135,11 +186,5 @@ def learn(config, checkpoint_dir=None, time_step = 1, criterion = MSE, nb_epoch 
         model_state, optimizer_state = torch.load(checkpoint)
         model.load_state_dict(model_state)
         optimizer.load_state_dict(optimizer_state)
-
-    train_dataset, validation_dataset, test_dataset = get_dataset_experimental_STCONV(path=path_data,
-                                                                                    train_test_ratio = 0.8, 
-                                                                                    train_validation_ratio = 0.8,
-                                                                                    batch_size=config["batch_size"],
-                                                                                    time_steps=time_step)
 
     train_val_and_test(model,train_dataset,validation_dataset,test_dataset,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience)
