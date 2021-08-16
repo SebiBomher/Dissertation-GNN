@@ -61,7 +61,7 @@ class DataReader():
             __read_nodes_data : set nodes_location from Metadata (may contain data from empty nodes) -> None - private
     """
 
-    def __init__(self,__path_raw_data : str,graph_info_txt : str) -> None:
+    def __init__(self,path_raw_data : str,graph_info_txt : str) -> None:
         r"""
             Constructor, reads all the necessary data.
             Args : 
@@ -69,8 +69,10 @@ class DataReader():
                 graph_info_txt , string :  Txt file for the nodes metadata
         """
 
-        self.__path_raw_data = __path_raw_data
+        self.__path_raw_data = path_raw_data
         self.__graph_info_txt = graph_info_txt
+
+    def start(self):
         self.__get_good_empty_nodes()
         self.__read_data()
         self.__read_nodes_data()
@@ -82,7 +84,7 @@ class DataReader():
             Returns Nothing.
         """
 
-        info_data =  glob(os.path.join(self.__path_raw_data,self.__graph_info_txt))
+        info_data = os.path.join(self.__path_raw_data,self.__graph_info_txt)
         nodes_location = []
         skip = True
         with open(info_data) as f:
@@ -140,6 +142,7 @@ class DataReader():
         nb_days = 0
         for file in glob(txtFiles):
             with open(file) as f:
+                print("Reading day {0}".format(nb_days + 1))
                 content = f.readlines()
                 for line in content:
                     line = line.split(',')
@@ -252,7 +255,18 @@ class Graph():
         """
         assert self.__lamda in self.lamda_array and self.__epsilon in self.__epsilon_array
 
-    def __set_nodes(self,size) -> None:
+    def need_load(path_processed_data):
+        return len(Graph.__get_tuple_to_add(path_processed_data)) == 0
+
+    def __get_tuple_to_add(path_processed_data):
+        sizes_to_add = []
+        for size in DatasetSize:
+            name_nodes = os.path.join(path_processed_data,'nodes_{0}.npy'.format(str(size)))
+            if os.path.isfile(name_nodes):
+                sizes_to_add.append(size)
+        return sizes_to_add
+
+    def __set_nodes(self) -> None:
         r"""
             Instance function.
             Sets nodes array of ids for each size, so the ids will always be the same.
@@ -260,12 +274,7 @@ class Graph():
         """
 
         good_nodes = self.__data_reader.good_nodes
-        sizes_to_add = []
-        for size in DatasetSize:
-            name_nodes = os.path.join(self.__path_processed_data,'nodes_{0}.npy'.format(str(size)))
-            if os.path.isfile(name_nodes):
-                sizes_to_add.append(size)
-
+        sizes_to_add = self.__get_tuple_to_add(self.__path_processed_data)
         for size in sizes_to_add:
             nodes = sample(good_nodes, self.get_number_nodes_by_size(size))
             name_nodes = os.path.join(self.__path_processed_data,'nodes_{0}.npy'.format(str(size)))
@@ -304,7 +313,7 @@ class Graph():
             self.__save_graph(self.__get_nodes_ids_by_size(size),nodes_location,epsilon,lamda,size)  
 
 
-    def __save_graph(self,nodes,nodes_location,epsilon,lamda,size) -> None:
+    def __save_graph(self,nodes,nodes_location,epsilon,lamda,size : DatasetSize) -> None:
         r"""
             Instance function.
             Save a graph by a configuration.
@@ -314,7 +323,7 @@ class Graph():
         edge_weight = []
         nodes_location = [node for node in nodes_location if node in nodes]
         self.num_nodes = len(nodes_location)
-
+        print("Saving graph with configuration : epsilon = {0}, lamda = {1}, size = {2}".format(str(epsilon),str(lamda),str(size.name)))
         for i in range(len(nodes_location) - 1):
             for j in range(i,len(nodes_location) - 1):
                 if i != j:
@@ -326,8 +335,8 @@ class Graph():
                         edge_weight.append(weight)
 
         edge_index = np.transpose(edge_index)
-        name_weight = os.path.join(self.__path_processed_data,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size)))
-        name_index = os.path.join(self.__path_processed_data,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size)))
+        name_weight = os.path.join(self.__path_processed_data,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
+        name_index = os.path.join(self.__path_processed_data,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
         np.save(name_index,edge_index)
         np.save(name_weight,edge_weight)
 
@@ -337,10 +346,10 @@ class Graph():
             Sets the edge_index, edge_weight and num_nodes.
             Returns Nothing.
         """
-        name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size)))
+        name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size.name)))
         self.edge_weight = np.load(name_weight)
 
-        name_index = os.path.join(self.__path_processed_data,'Data_EdgeWeight','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size)))
+        name_index = os.path.join(self.__path_processed_data,'Data_EdgeWeight','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size.name)))
         self.edge_index = np.load(name_index)
 
     def get_number_nodes_by_size(size : DatasetSize) -> int:

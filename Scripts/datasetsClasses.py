@@ -3,12 +3,7 @@ import torch
 import numpy as np
 from torch_geometric.data import Data
 import glob
-from data_proccess import DatasetSize,DataReader,Graph
-
-def get_dataset_STCONV(path, path_proccessed_data,graph_info_txt, train_ratio , test_ratio , val_ratio , batch_size,time_steps,epsilon,lamda,nodes_size):
-    DataTraffic = STConvDataset(path,graph_info_txt,path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size)
-    train,test,val = STConvDataset.split_dataset(DataTraffic, train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
-    return train,val,test,DataTraffic.num_nodes
+from Scripts.data_proccess import DatasetSize,DataReader,Graph
 
 class DatasetClass(object):
     r"""
@@ -110,7 +105,7 @@ class DatasetClass(object):
 
 class STConvDataset(DatasetClass):
     
-    time_steps_array= [1,3,5,7]
+    time_steps_array= [1]
 
     def __init__(self,proccessed_data_path : str,
                 time_steps : int,
@@ -123,18 +118,22 @@ class STConvDataset(DatasetClass):
                 time_stop : float = -1):
 
         DatasetClass.__init__(proccessed_data_path,batch_size,lamda,epsilon,time_start,time_stop,datareader,size)
+        self.proccessed_data_path = os.path.join(self.proccessed_data_path,"STCONV")
         self.time_steps = time_steps
         self.__check_timesteps()
         self.__save_dataset()
         self.__set_snapshot_count()
     
+    def need_load(proccessed_data_path):
+        return len(STConvDataset.__get_tuple_to_add(proccessed_data_path)) == 0
+
     def get_dataset_STCONV(path, path_proccessed_data, train_ratio , test_ratio , val_ratio , batch_size,time_steps,epsilon,lamda,nodes_size,datareader):
         DataTraffic = STConvDataset(path,path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader)
         train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
 
     def __set_snapshot_count(self): 
-        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size))),"X_*.npy"))
+        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name))),"X_*.npy"))
 
     def __check_timesteps(self):
         assert self.time_steps in self.time_steps_array
@@ -176,7 +175,10 @@ class STConvDataset(DatasetClass):
         
         return train_iterator, test_iterator, val_iterator
 
-    def __save_proccess_data(self,batch_size : int,time_steps : int,datareader : DataReader, nodes_size : int):
+    def __save_proccess_data(self,batch_size : int,time_steps : int,datareader : DataReader, size : DatasetSize):
+        
+        print("Saving data with configuration : time_steps = {0}, batch_size = {1}, size = {2}".format(str(time_steps),str(batch_size),str(size.name)))
+
 
         interval_per_day = (int)(24 * 60 / 5)
         Skip = (int)(time_steps/2) * 2
@@ -185,6 +187,8 @@ class STConvDataset(DatasetClass):
         X = datareader.X
         Y = datareader.Y
         
+        nodes_size = Graph.get_number_nodes_by_size(size)
+
         X = self.__arrange_data_for_time_step(X,time_steps,nodes_size)
         Y = self.__arrange_data_for_time_step(Y,time_steps,nodes_size)
 
@@ -200,7 +204,7 @@ class STConvDataset(DatasetClass):
         X = np.array(X).reshape(new_size,batch_size,time_steps,nodes_size,3)
         Y = np.array(Y).reshape(new_size,batch_size,time_steps,nodes_size,1)
 
-        name_folder = os.path.join(self.proccessed_data_path,'Data_{0}_{1}'.format(str(time_steps),str(batch_size)))
+        name_folder = os.path.join(self.proccessed_data_path,'Data_{0}_{1}_{2}'.format(str(time_steps),str(batch_size),str(size.name)))
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
 
@@ -225,18 +229,20 @@ class STConvDataset(DatasetClass):
             New_Data.append(Graph)
         return New_Data
         
-    def __save_dataset(self):
+    def __get_tuple_to_add(proccessed_data_path):
         to_create = []
-        for time_step in self.time_steps_array:
-            for batch_size in self.batch_sizes_array:
+        for time_step in STConvDataset.time_steps_array:
+            for batch_size in STConvDataset.batch_sizes_array:
                 for size in DatasetSize:
-                    name_folder = os.path.join(self.proccessed_data_path,'Data_{0}_{1}_{2}'.format(str(time_step),str(batch_size),str(size)))
+                    name_folder = os.path.join(proccessed_data_path,'Data_{0}_{1}_{2}'.format(str(time_step),str(batch_size),str(size.name)))
                     if not os.path.exists(name_folder):
-                        os.makedirs(name_folder)
                         to_create.append([time_step,batch_size,size])
-
+        return to_create
+    
+    def __save_dataset(self):
+        to_create = self.__get_tuple_to_add(self.proccessed_data_path)
         for tuple in to_create:
             time_step = tuple[0]
             batch_size = tuple[1]
             size = tuple[2]
-            self.__save_proccess_data(self.proccessed_data_path,batch_size,time_step,self.data_reader)
+            self.__save_proccess_data(self.proccessed_data_path,batch_size,time_step,self.data_reader,size)

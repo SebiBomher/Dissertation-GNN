@@ -2,7 +2,7 @@ from ray import tune
 from torch import nn
 from torch.functional import Tensor
 from Scripts.models import STConvModel
-from Scripts.data_proccess import DatasetSize, Graph, get_dataset_experimental_STCONV
+from Scripts.data_proccess import Graph
 from tqdm import tqdm
 import numpy as np
 import copy
@@ -10,17 +10,8 @@ import torch
 import os
 from torch.optim import Adam,RMSprop,Adamax
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from Scripts.datasetsClasses import DatasetClass, STConvDataset
+from Scripts.datasetsClasses import STConvDataset
 from enum import Enum
-
-class LossFunctionType(Enum):
-    r"""
-    
-    """
-    RMSE = 0
-    MAPE = 1
-    MAE = 2
-    MSE = 3
 
 class ModelType(Enum):
     r"""
@@ -40,11 +31,7 @@ class OptimiserType(Enum):
     Adamax = 2
 
 class LossFunction():
-    def __init__(self,function_type : LossFunctionType, y_true,y_pred):
-        self.function_type = function_type
-        self.y_true = y_true
-        self.y_pred = y_pred
-
+    
     def RMSE(y_pred,y_true) -> Tensor:
         return torch.sqrt(torch.mean((y_pred-y_true)**2))
         
@@ -58,6 +45,27 @@ class LossFunction():
         return torch.mean((y_pred-y_true)**2)
 
 class Learn():
+
+    def __init__(self,config,info,param):
+        self.batch_size = config["batch_size"]
+        self.epsilon = config["epsilon"]
+        self.lamda = config["lamda"]
+        self.hidden_channels = config["hidden_channels"]
+        self.optimizer_type = config["optimizer_type"]
+        self.proccessed_data_path = param["proccessed_data_path"]
+        self.graph_info_txt = param["graph_info_txt"]
+        self.train_ratio = param["train_ratio"]
+        self.test_ratio = param["test_ratio"]
+        self.val_ratio = param["val_ratio"]
+        self.checkpoint_dir = param["checkpoint_dir"]
+        self.learning_rate = param["learning_rate"]
+        self.EarlyStoppingPatience = param["EarlyStoppingPatience"]
+        self.nb_epoch = param["nb_epoch"]
+        self.nodes_size = param["nodes_size"]
+        self.datareader = param["datareader"]
+        self.num_features = param["num_features"]
+        self.criterion = info["criterion"]
+        self.model_type = info["model_type"]
 
     def __train(self):
         self.model.train()
@@ -117,75 +125,53 @@ class Learn():
         loss = loss.item()
         print("Best trial test set loss: {}".format(loss))
 
-    def train_val_and_test(self):
+    def __train_val_and_test(self):
         best_model = self.__train()
         self.__test(best_model)
-        
-    def set_configuration(self,optimizer,nb_epoch,criterion,scheduler,EarlyStoppingPatience,model_type : ModelType):
-        self.optimizer = optimizer
-        self.nb_epoch = nb_epoch
-        self.criterion = criterion
-        self.scheduler = scheduler
-        self.EarlyStoppingPatience = EarlyStoppingPatience
-        self.model_type = model_type
 
-    def set_dataset_and_model(self,config,param):
+    def __set_for_train(self):
         if self.model_type == ModelType.STCONV:
-            self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(path_proccessed_data=param["proccessed_data_path"],
-                                                                                            graph_info_txt=param["graph_info_txt"], 
-                                                                                            train_ratio = param["train_ratio"], 
-                                                                                            test_ratio = param["test_ratio"], 
-                                                                                            val_ratio = param["val_ratio"], 
-                                                                                            batch_size=config["batch_size"],
+            self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(path_proccessed_data=self.proccessed_data_path,
+                                                                                            graph_info_txt=self.graph_info_txt, 
+                                                                                            train_ratio = self.train_ratio, 
+                                                                                            test_ratio = self.test_ratio, 
+                                                                                            val_ratio = self.val_ratio, 
+                                                                                            batch_size=self.batch_size,
                                                                                             time_steps=1,
-                                                                                            epsilon=config["epsilon"],
-                                                                                            lamda=config["lamda"],
-                                                                                            nodes_size=param["nodes_size"])
+                                                                                            epsilon=self.epsilon,
+                                                                                            lamda=self.lamda,
+                                                                                            nodes_size=self.nodes_size,
+                                                                                            datareader= self.datareader)
             
-            self.model = STConvModel(node_features = param["num_features"],
-                                num_nodes = Graph.get_number_nodes_by_size(param["nodes_size"]),
-                                hidden_channels = config["hidden_channels"],
+            self.model = STConvModel(node_features = self.num_features,
+                                num_nodes = Graph.get_number_nodes_by_size(self.nodes_size),
+                                hidden_channels = self.hidden_channels,
                                 kernel_size = 1,
-                                K = config["K"])
-
-
-    def learn(config,info, checkpoint_dir=None, time_step = 1, criterion = LossFunctionType.MAE, nb_epoch = 200, model_type = ModelType.STCONV,nodes_size=DatasetSize.Full):
-       
-        param = {
-            "learning_rate" : 0.01,
-            "num_nodes": 8,
-            "num_features" : 3,
-            "EarlyStoppingPatience" : 10,
-            "path_data" : "D:\\FacultateMasterAI\\Dissertation-GNN\\Data",
-            "path_processed_data" : "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed",
-            "graph_info_txt" : "d07_text_meta_2021_03_27.txt"
-        }
-
-        learn = Learn()
-        learn.set_dataset_and_model(config,param)
+                                K = 1)
 
         device = "cpu"
         if torch.cuda.is_available():
             device = "cuda:0"
             if torch.cuda.device_count() > 1:
-                learn.model = nn.DataParallel(learn.model)
-        learn.model.to(device)
+                self.model = nn.DataParallel(self.model)
+        self.model.to(device)
 
-        if config["optimizer_type"] == "Adam":
-            optimizer = Adam(learn.model.parameters(), lr=param["learning_rate"])
-        elif config["optimizer_type"] == "RMSprop":
-            optimizer = RMSprop(learn.model.parameters(), lr=param["learning_rate"])
-        elif config["optimizer_type"] == "Adamax":
-            optimizer = Adamax(learn.model.parameters(), lr=param["learning_rate"])
-        
-        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, threshold=0.00000001, threshold_mode='abs')
+        if self.optimizer_type == OptimiserType.Adam:
+            optimizer = Adam(self.model.parameters(), lr=self.learning_rate)
+        elif self.optimizer_type == OptimiserType.RMSprop:
+            optimizer = RMSprop(self.model.parameters(), lr=self.learning_rate)
+        elif self.optimizer_type == OptimiserType.Adamax:
+            optimizer = Adamax(self.model.parameters(), lr=self.learning_rate)
 
-        if info["checkpoint_dir"]:
-            checkpoint = os.path.join(info["checkpoint_dir"], "checkpoint")
+        self.scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, threshold=0.00000001, threshold_mode='abs')
+
+        if self.checkpoint_dir:
+            checkpoint = os.path.join(self.checkpoint_dir, "checkpoint")
             model_state, optimizer_state = torch.load(checkpoint)
-            learn.model.load_state_dict(model_state)
+            self.model.load_state_dict(model_state)
             optimizer.load_state_dict(optimizer_state)
-        
-        learn.set_configuration(optimizer,nb_epoch,criterion,scheduler,param["EarlyStoppingPatience"],model_type)
 
-        learn.train_val_and_test()
+    def start(config, info, param):
+        learn = Learn(param,info,config)
+        learn.__set_for_train()
+        learn.__train_val_and_test()
