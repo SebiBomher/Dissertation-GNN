@@ -96,7 +96,7 @@ class DataReader():
                     line = line[:-1]
                     nodes_location.append([line[0],line[8],line[9]])
 
-        self.__num_nodes = len(nodes_location)
+        self.__total_num_nodes = len(nodes_location)
 
     def __get_good_empty_nodes(self) -> None :
         r"""
@@ -106,7 +106,7 @@ class DataReader():
         """
 
         self.__get_number_of_nodes()
-        index = self.__num_nodes
+        index = self.__total_num_nodes
         empty_nodes = []
         good_nodes = []
         txtFiles = os.path.join(self.__path_raw_data,"*","*.txt")
@@ -208,7 +208,7 @@ class Graph():
             __get_nodes_ids_by_size : returns graph nodes ids based by size -> list - private
             __process_graph_info : checks if the data required is available, if not it creates it -> None - private
             __save_graph : save a graph by a configuration -> None - private
-            __set_graph_info : sets the edge_index, edge_weight and num_nodes -> None- private
+            __set_graph_info : sets the edge_index and edge_weight -> None- private
 
         Class Functions:
             get_number_nodes_by_size : returns the number of nodes by size -> int: - public
@@ -337,10 +337,10 @@ class Graph():
             Sets the edge_index, edge_weight and num_nodes.
             Returns Nothing.
         """
-        name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}.npy'.format(str(self.__epsilon),str(self.__lamda)))
+        name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size)))
         self.edge_weight = np.load(name_weight)
 
-        name_index = os.path.join(self.__path_processed_data,'Data_EdgeWeight','index_{0}_{1}.npy'.format(str(self.__epsilon),str(self.__lamda)))
+        name_index = os.path.join(self.__path_processed_data,'Data_EdgeWeight','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size)))
         self.edge_index = np.load(name_index)
 
     def get_number_nodes_by_size(size : DatasetSize) -> int:

@@ -128,9 +128,9 @@ class STConvDataset(DatasetClass):
         self.__save_dataset()
         self.__set_snapshot_count()
     
-    def get_dataset_STCONV(path, path_proccessed_data,graph_info_txt, train_ratio , test_ratio , val_ratio , batch_size,time_steps,epsilon,lamda,nodes_size):
-        DataTraffic = STConvDataset(path,graph_info_txt,path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size)
-        train,test,val = STConvDataset.__split_dataset(DataTraffic, train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
+    def get_dataset_STCONV(path, path_proccessed_data, train_ratio , test_ratio , val_ratio , batch_size,time_steps,epsilon,lamda,nodes_size,datareader):
+        DataTraffic = STConvDataset(path,path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader)
+        train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
 
     def __set_snapshot_count(self): 
