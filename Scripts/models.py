@@ -3,7 +3,6 @@ import torch
 from torch_geometric_temporal.nn.attention.stgcn import STConv
 from torch_geometric_temporal.nn.attention.astgcn import ASTGCN
 from torch_geometric_temporal.nn.attention.mstgcn import MSTGCN
-from torch_geometric_temporal.nn.attention.gman import GMAN
 
 class STConvModel(torch.nn.Module):
     def __init__(self, node_features,num_nodes,hidden_channels,kernel_size,K):
@@ -28,24 +27,24 @@ class STConvModel(torch.nn.Module):
 
 
 class ASTGCNModel(torch.nn.Module):
-    def __init__(self):
+    def __init__(self,nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input,num_of_vertices):
         super(ASTGCN, self).__init__()
+        self.ASTGCN =ASTGCN(nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input,num_of_vertices)
 
-    def forward(self, x, edge_index, edge_weight):
+    def forward(self, x, edge_index):
+        x = self.ASTGCN(x, edge_index)
+        x = x.relu()
         return x
 
 class MSTGCNModel(torch.nn.Module):
-    def __init__(self):
+    def __init__(self,nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input):
         super(MSTGCN, self).__init__()
-        self.STCONV1 = ASTGCN()
-
+        self.MSTGCN = MSTGCN(nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input)
 
     def forward(self, x, edge_index, edge_weight):
+        x = self.MSTGCN(x, edge_index)
         return x
 
-class GMANModel(torch.nn.Module):
+class LinearRegression():
     def __init__(self):
-        super(GMAN, self).__init__()
-
-    def forward(self, x, edge_index, edge_weight):
-        return x
+        self.t = 1
