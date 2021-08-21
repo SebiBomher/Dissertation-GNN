@@ -11,7 +11,8 @@ class DatasetClass(object):
     """
     batch_sizes_array= [8,16,32]
 
-    def __init__(self,proccessed_data_path : str,
+    def __init__(self,
+                proccessed_data_path : str,
                 batch_size : int,
                 lamda : int,
                 epsilon : float,
@@ -22,7 +23,6 @@ class DatasetClass(object):
         r"""
     
         """
-        
         self.proccessed_data_path = proccessed_data_path
         self.batch_size = batch_size
         self.lamda = lamda
@@ -31,33 +31,30 @@ class DatasetClass(object):
         self.time_stop = time_stop
         self.data_reader = datareader
         self.size = size
-        self.__check_temporal_consistency()
         self.__check_batchsize()
         self.__set_graph()
 
-    def __check_temporal_consistency(self):
-        assert len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size))),"X_*.npy")) == len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size))),"Y_*.npy")) , "Temporal dimension inconsistency."
-
+    
     def __check_batchsize(self):
         assert self.batch_size in self.batch_sizes_array
 
     def __set_graph(self):
-        self.graph = Graph(self,self.proccessed_data_path,self.epsilon,self.lamda,self.size,self.data_reader)
+        self.graph = Graph(self.proccessed_data_path,self.epsilon,self.lamda,self.size,self.data_reader)
 
-    def __get_edge_index(self):
+    def get_edge_index(self):
         if self.graph.edge_index is None:
             return self.graph.edge_index
         else:
             return torch.LongTensor(self.graph.edge_index)
 
-    def __get_edge_weight(self):
+    def get_edge_weight(self):
         if self.graph.edge_weight is None:
             return self.graph.edge_weight
         else:
             return torch.FloatTensor(self.graph.edge_weight)
 
     def __get_features(self, time_index: int):
-        name_x = os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size)),'X_{0}.npy'.format(str(time_index))) 
+        name_x = os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'X_{0}.npy'.format(str(time_index))) 
         X = np.load(name_x)
         if X is None:
             return X
@@ -65,7 +62,7 @@ class DatasetClass(object):
             return torch.FloatTensor(X)
 
     def __get_target(self, time_index: int):
-        name_y = os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.time_steps),str(self.batch_size)),'Y_{0}.npy'.format(str(time_index))) 
+        name_y = os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'Y_{0}.npy'.format(str(time_index))) 
         Y = np.load(name_y)
         if Y is None:
             return Y
@@ -107,7 +104,8 @@ class STConvDataset(DatasetClass):
     
     time_steps_array= [1]
 
-    def __init__(self,proccessed_data_path : str,
+    def __init__(self,
+                proccessed_data_path : str,
                 time_steps : int,
                 batch_size : int,
                 lamda : int,
@@ -117,23 +115,27 @@ class STConvDataset(DatasetClass):
                 time_start : int = 0 ,
                 time_stop : float = -1):
 
-        DatasetClass.__init__(proccessed_data_path,batch_size,lamda,epsilon,time_start,time_stop,datareader,size)
-        self.proccessed_data_path = os.path.join(self.proccessed_data_path,"STCONV")
+        super().__init__(proccessed_data_path,batch_size,lamda,epsilon,size,datareader,time_start,time_stop)
+        self.proccessed_data_path_STCONV = os.path.join(self.proccessed_data_path,"STCONV")
         self.time_steps = time_steps
         self.__check_timesteps()
         self.__save_dataset()
+        self.__check_temporal_consistency()
         self.__set_snapshot_count()
-    
-    def need_load(proccessed_data_path):
-        return len(STConvDataset.__get_tuple_to_add(proccessed_data_path)) == 0
+        
+    def __check_temporal_consistency(self):
+        assert len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name))),"X_*.npy")) == len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name))),"Y_*.npy")) , "Temporal dimension inconsistency."
 
-    def get_dataset_STCONV(path, path_proccessed_data, train_ratio , test_ratio , val_ratio , batch_size,time_steps,epsilon,lamda,nodes_size,datareader):
-        DataTraffic = STConvDataset(path,path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader)
+    def need_load(proccessed_data_path):
+        return len(STConvDataset.__get_tuple_to_add(os.path.join(proccessed_data_path,"STCONV"))) > 0
+
+    def get_dataset_STCONV(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,time_steps : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader):
+        DataTraffic = STConvDataset(path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader)
         train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
 
     def __set_snapshot_count(self): 
-        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name))),"X_*.npy"))
+        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name))),"X_*.npy"))
 
     def __check_timesteps(self):
         assert self.time_steps in self.time_steps_array
@@ -204,7 +206,7 @@ class STConvDataset(DatasetClass):
         X = np.array(X).reshape(new_size,batch_size,time_steps,nodes_size,3)
         Y = np.array(Y).reshape(new_size,batch_size,time_steps,nodes_size,1)
 
-        name_folder = os.path.join(self.proccessed_data_path,'Data_{0}_{1}_{2}'.format(str(time_steps),str(batch_size),str(size.name)))
+        name_folder = os.path.join(self.proccessed_data_path_STCONV,'Data_{0}_{1}_{2}'.format(str(time_steps),str(batch_size),str(size.name)))
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
 
@@ -240,9 +242,53 @@ class STConvDataset(DatasetClass):
         return to_create
     
     def __save_dataset(self):
-        to_create = self.__get_tuple_to_add(self.proccessed_data_path)
+        to_create = STConvDataset.__get_tuple_to_add(self.proccessed_data_path_STCONV)
         for tuple in to_create:
             time_step = tuple[0]
             batch_size = tuple[1]
             size = tuple[2]
-            self.__save_proccess_data(self.proccessed_data_path,batch_size,time_step,self.data_reader,size)
+            self.__save_proccess_data(batch_size,time_step,self.data_reader,size)
+
+    
+    def __get_edge_weight(self):
+        if self.graph.edge_weight is None:
+            return self.graph.edge_weight
+        else:
+            return torch.FloatTensor(self.graph.edge_weight)
+
+    def __get_features(self, time_index: int):
+        name_x = os.path.join(self.proccessed_data_path_STCONV,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name)),'X_{0}.npy'.format(str(time_index))) 
+        X = np.load(name_x)
+        if X is None:
+            return X
+        else:       
+            return torch.FloatTensor(X)
+
+    def __get_target(self, time_index: int):
+        name_y = os.path.join(self.proccessed_data_path_STCONV,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name)),'Y_{0}.npy'.format(str(time_index))) 
+        Y = np.load(name_y)
+        if Y is None:
+            return Y
+        else:
+            if Y.dtype.kind == 'i':
+                return torch.LongTensor(Y)
+            elif Y.dtype.kind == 'f':
+                return torch.FloatTensor(Y)
+
+    def __get_item__(self, time_index: int):
+            x = self.__get_features(time_index)
+            edge_index = self.get_edge_index()
+            edge_weight = self.get_edge_weight()
+            y = self.__get_target(time_index)
+
+            print(np.array(x).shape)
+            print(np.array(y).shape)
+            print(np.array(edge_index).shape)
+            print(np.array(edge_weight).shape)
+
+            snapshot = Data(x = x,
+                            edge_index = edge_index,
+                            edge_attr = edge_weight,
+                            y = y)
+            return snapshot
+     

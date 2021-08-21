@@ -21,6 +21,7 @@ class ModelType(Enum):
     ASTGCN = 1
     MSTGCN = 2
     GMAN = 3
+    LinearRegression = 4
 
 class OptimiserType(Enum):
     r"""
@@ -46,7 +47,7 @@ class LossFunction():
 
 class Learn():
 
-    def __init__(self,config,info,param):
+    def __init__(self,param,info,config):
         self.batch_size = config["batch_size"]
         self.epsilon = config["epsilon"]
         self.lamda = config["lamda"]
@@ -131,8 +132,8 @@ class Learn():
 
     def __set_for_train(self):
         if self.model_type == ModelType.STCONV:
-            self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(path_proccessed_data=self.proccessed_data_path,
-                                                                                            graph_info_txt=self.graph_info_txt, 
+            self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(
+                                                                                            path_proccessed_data=self.proccessed_data_path,
                                                                                             train_ratio = self.train_ratio, 
                                                                                             test_ratio = self.test_ratio, 
                                                                                             val_ratio = self.val_ratio, 
@@ -157,19 +158,23 @@ class Learn():
         self.model.to(device)
 
         if self.optimizer_type == OptimiserType.Adam:
-            optimizer = Adam(self.model.parameters(), lr=self.learning_rate)
+            self.optimizer = Adam(self.model.parameters(), lr=self.learning_rate)
         elif self.optimizer_type == OptimiserType.RMSprop:
-            optimizer = RMSprop(self.model.parameters(), lr=self.learning_rate)
+            self.optimizer = RMSprop(self.model.parameters(), lr=self.learning_rate)
         elif self.optimizer_type == OptimiserType.Adamax:
-            optimizer = Adamax(self.model.parameters(), lr=self.learning_rate)
+            self.optimizer = Adamax(self.model.parameters(), lr=self.learning_rate)
 
-        self.scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, threshold=0.00000001, threshold_mode='abs')
+        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5, threshold=0.00000001, threshold_mode='abs')
 
         if self.checkpoint_dir:
             checkpoint = os.path.join(self.checkpoint_dir, "checkpoint")
             model_state, optimizer_state = torch.load(checkpoint)
             self.model.load_state_dict(model_state)
-            optimizer.load_state_dict(optimizer_state)
+            self.optimizer.load_state_dict(optimizer_state)
+
+    def set_data(config,info,param):
+        learn = Learn(param,info,config)
+        learn.__set_for_train()
 
     def start(config, info, param):
         learn = Learn(param,info,config)
