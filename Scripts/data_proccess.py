@@ -19,7 +19,7 @@ class DatasetSizeNumber(Enum):
     Full = 2400
     Medium = 1200
     Small = 120
-    Experimental = 5
+    Experimental = 8
 
 
 class DatasetSize(Enum):
@@ -347,8 +347,16 @@ class Graph():
                         edge_weight.append(weight)
 
         edge_index = np.transpose(edge_index)
-        name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
-        name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
+        name_folder_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight')
+        name_folder_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex')
+        if not os.path.exists(name_folder_weight):
+            os.makedirs(name_folder_weight)
+
+        if not os.path.exists(name_folder_index):
+            os.makedirs(name_folder_index)
+        
+        name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
+        name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
         np.save(name_index,edge_index)
         np.save(name_weight,edge_weight)
 
@@ -363,8 +371,6 @@ class Graph():
 
         name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size.name)))
         self.edge_index = np.load(name_index)
-        print(np.array(self.edge_index).shape)
-        print(np.array(self.edge_weight).shape)
     def get_number_nodes_by_size(size : DatasetSize) -> int:
         r"""
             Class function.

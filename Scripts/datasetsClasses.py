@@ -121,7 +121,7 @@ class CustomDataset(DatasetClass):
     def need_load(proccessed_data_path):
         return len(CustomDataset.__get_tuple_to_add(os.path.join(proccessed_data_path,"Custom"))) > 0
 
-    def get_dataset_Custom(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,time_steps : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader):
+    def get_dataset_Custom(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader):
         DataTraffic = CustomDataset(path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader)
         train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
@@ -178,11 +178,25 @@ class CustomDataset(DatasetClass):
             Y = Y[:data_size-difference]
             new_size -= 1
 
-        X = np.array(X).reshape(new_size,batch_size,nodes_size,3)
+        X = np.array(X).reshape(new_size,batch_size,nodes_size,2)
         Y = np.array(Y).reshape(new_size,batch_size,nodes_size,1)
 
+        if not os.path.exists(self.proccessed_data_path_model):
+            os.makedirs(self.proccessed_data_path_model)
 
+        name_folder = os.path.join(self.proccessed_data_path_model,'Data_{0}_{1}'.format(str(batch_size),str(size.name)))
+        if not os.path.exists(name_folder):
+            os.makedirs(name_folder)
+
+        for index,data in enumerate(X):
+            name_x = os.path.join(name_folder,'X_{0}.npy'.format(str(index)))
+            np.save(name_x, data)
+
+        for index,data in enumerate(Y):
+            name_y = os.path.join(name_folder,'Y_{0}.npy'.format(str(index)))
+            np.save(name_y, data)
     def __get_tuple_to_add(proccessed_data_path):
+
         to_create = []
         for batch_size in [8]:
             for size in [DatasetSize.Experimental]:
@@ -301,7 +315,7 @@ class STConvDataset(DatasetClass):
             Y = Y[:data_size-difference]
             new_size -= 1
 
-        X = np.array(X).reshape(new_size,batch_size,time_steps,nodes_size,3)
+        X = np.array(X).reshape(new_size,batch_size,time_steps,nodes_size,2)
         Y = np.array(Y).reshape(new_size,batch_size,time_steps,nodes_size,1)
 
         name_folder = os.path.join(self.proccessed_data_path_STCONV,'Data_{0}_{1}_{2}'.format(str(time_steps),str(batch_size),str(size.name)))

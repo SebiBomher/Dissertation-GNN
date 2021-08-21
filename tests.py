@@ -4,8 +4,8 @@ from Scripts.learn import Learn, LossFunction,  ModelType, OptimiserType
 
 if __name__ == '__main__':
 
-    path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
+    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
     datareader = DataReader(path_data,graph_info_txt)
     
