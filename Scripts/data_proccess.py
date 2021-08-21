@@ -124,7 +124,7 @@ class DataReader():
                     line = line.split(',')
                     line = [line1.replace("\n","") for line1 in line]
                     line[0]
-                    if not (line[9] == '' or line[10] == '' or line[8] == '' or line[11] == ''):
+                    if not (line[9] == '' or line[10] == '' or line[11] == ''):
                         good_nodes.append(line[1])
                     index -=1
                     if index == 0:
@@ -157,7 +157,7 @@ class DataReader():
                     else:
                         good_nodes.append(line[1])
                         Y.append((float)(line[11]))
-                        X.append([(float)(line[8]),(float)(line[9]),(float)(line[10])])
+                        X.append([(float)(line[9]),(float)(line[10])])
             nb_days += 1
         self.X = X
         self.Y = Y

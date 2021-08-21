@@ -97,8 +97,106 @@ class DatasetClass(object):
     def __iter__(self):
         self.t = self.time_start
         return self
+class CustomDataset(DatasetClass):
+    
+    def __init__(self,
+                proccessed_data_path : str,
+                batch_size : int,
+                lamda : int,
+                epsilon : float,
+                size : DatasetSize,
+                datareader : DataReader,
+                time_start : int = 0 ,
+                time_stop : float = -1):
+
+        super().__init__(proccessed_data_path,batch_size,lamda,epsilon,size,datareader,time_start,time_stop)
+        self.proccessed_data_path_model = os.path.join(self.proccessed_data_path,"Custom")
+        self.__save_dataset()
+        self.__check_temporal_consistency()
+        self.__set_snapshot_count()
+        
+    def __check_temporal_consistency(self):
+        assert len(glob.glob1(os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name))),"X_*.npy")) == len(glob.glob1(os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name))),"Y_*.npy")) , "Temporal dimension inconsistency."
+
+    def need_load(proccessed_data_path):
+        return len(CustomDataset.__get_tuple_to_add(os.path.join(proccessed_data_path,"Custom"))) > 0
+
+    def get_dataset_Custom(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,time_steps : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader):
+        DataTraffic = CustomDataset(path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader)
+        train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
+        return train,val,test
+
+    def __set_snapshot_count(self): 
+        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name))),"X_*.npy"))
+
+    def __split_dataset(self, train_ratio: float=0.6, test_ratio: float = 0.2, val_ratio: float = 0.2):
+        assert train_ratio + test_ratio + val_ratio == 1
+        time_train = int(train_ratio*self.snapshot_count)
+        time_test = time_train + int(test_ratio*self.snapshot_count)
+
+        train_iterator = CustomDataset(self.proccessed_data_path,
+                                                    self.batch_size,
+                                                    self.lamda,
+                                                    self.epsilon,
+                                                    self.size,
+                                                    self.data_reader,
+                                                    0,
+                                                    time_train + 1)
+
+        test_iterator = CustomDataset(self.proccessed_data_path,
+                                                    self.batch_size,
+                                                    self.lamda,
+                                                    self.epsilon,
+                                                    self.size,
+                                                    self.data_reader,
+                                                    time_train + 1,
+                                                    time_test)
+
+        val_iterator = CustomDataset(self.proccessed_data_path,
+                                                    self.batch_size,
+                                                    self.lamda,
+                                                    self.epsilon,
+                                                    self.size,
+                                                    self.data_reader,
+                                                    time_test + 1,
+                                                    self.snapshot_count)
+        
+        return train_iterator, test_iterator, val_iterator
+
+    def __save_proccess_data(self,batch_size : int, datareader : DataReader, size : DatasetSize):
+        print("Saving data with configuration : batch_size = {0}, size = {1}".format(str(batch_size),str(size.name)))
+        
+        X = datareader.X
+        Y = datareader.Y
+        
+        nodes_size = Graph.get_number_nodes_by_size(size)
+        new_size = (int)(datareader.nb_days / batch_size)
+        data_size = len(X)
+        if new_size * batch_size != data_size:
+            difference = data_size-((new_size - 1) * batch_size)
+            X = X[:data_size-difference]
+            Y = Y[:data_size-difference]
+            new_size -= 1
+
+        X = np.array(X).reshape(new_size,batch_size,nodes_size,3)
+        Y = np.array(Y).reshape(new_size,batch_size,nodes_size,1)
 
 
+    def __get_tuple_to_add(proccessed_data_path):
+        to_create = []
+        for batch_size in [8]:
+            for size in [DatasetSize.Experimental]:
+                name_folder = os.path.join(proccessed_data_path,'Data_{0}_{1}'.format(str(batch_size),str(size.name)))
+                if not os.path.exists(name_folder):
+                    to_create.append([batch_size,size])
+        return to_create
+    
+    def __save_dataset(self):
+        to_create = CustomDataset.__get_tuple_to_add(self.proccessed_data_path_model)
+        for tuple in to_create:
+            batch_size = tuple[0]
+            size = tuple[1]
+            self.__save_proccess_data(batch_size,self.data_reader,size)
 
 class STConvDataset(DatasetClass):
     
@@ -250,12 +348,6 @@ class STConvDataset(DatasetClass):
             self.__save_proccess_data(batch_size,time_step,self.data_reader,size)
 
     
-    def __get_edge_weight(self):
-        if self.graph.edge_weight is None:
-            return self.graph.edge_weight
-        else:
-            return torch.FloatTensor(self.graph.edge_weight)
-
     def __get_features(self, time_index: int):
         name_x = os.path.join(self.proccessed_data_path_STCONV,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name)),'X_{0}.npy'.format(str(time_index))) 
         X = np.load(name_x)
@@ -280,11 +372,6 @@ class STConvDataset(DatasetClass):
             edge_index = self.get_edge_index()
             edge_weight = self.get_edge_weight()
             y = self.__get_target(time_index)
-
-            print(np.array(x).shape)
-            print(np.array(y).shape)
-            print(np.array(edge_index).shape)
-            print(np.array(edge_weight).shape)
 
             snapshot = Data(x = x,
                             edge_index = edge_index,

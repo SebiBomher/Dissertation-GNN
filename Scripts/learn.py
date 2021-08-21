@@ -1,7 +1,7 @@
 from ray import tune
 from torch import nn
 from torch.functional import Tensor
-from Scripts.models import STConvModel
+from Scripts.models import CustomModel, STConvModel
 from Scripts.data_proccess import Graph
 from tqdm import tqdm
 import numpy as np
@@ -10,7 +10,7 @@ import torch
 import os
 from torch.optim import Adam,RMSprop,Adamax
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from Scripts.datasetsClasses import STConvDataset
+from Scripts.datasetsClasses import CustomDataset, STConvDataset
 from enum import Enum
 
 class ModelType(Enum):
@@ -18,9 +18,7 @@ class ModelType(Enum):
     
     """
     STCONV = 0
-    ASTGCN = 1
-    MSTGCN = 2
-    GMAN = 3
+    Custom = 3
     LinearRegression = 4
 
 class OptimiserType(Enum):
@@ -130,6 +128,31 @@ class Learn():
         best_model = self.__train()
         self.__test(best_model)
 
+    def __set_for_data(self):
+        self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(
+                                                                                            path_proccessed_data=self.proccessed_data_path,
+                                                                                            train_ratio = self.train_ratio, 
+                                                                                            test_ratio = self.test_ratio, 
+                                                                                            val_ratio = self.val_ratio, 
+                                                                                            batch_size=self.batch_size,
+                                                                                            time_steps=1,
+                                                                                            epsilon=self.epsilon,
+                                                                                            lamda=self.lamda,
+                                                                                            nodes_size=self.nodes_size,
+                                                                                            datareader= self.datareader)
+
+        self.train_dataset, self.validation_dataset, self.test_dataset = CustomDataset.get_dataset_Custom(
+                                                                                            path_proccessed_data=self.proccessed_data_path,
+                                                                                            train_ratio = self.train_ratio, 
+                                                                                            test_ratio = self.test_ratio, 
+                                                                                            val_ratio = self.val_ratio, 
+                                                                                            batch_size=self.batch_size,
+                                                                                            epsilon=self.epsilon,
+                                                                                            lamda=self.lamda,
+                                                                                            nodes_size=self.nodes_size,
+                                                                                            datareader= self.datareader)
+
+
     def __set_for_train(self):
         if self.model_type == ModelType.STCONV:
             self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(
@@ -149,7 +172,21 @@ class Learn():
                                 hidden_channels = self.hidden_channels,
                                 kernel_size = 1,
                                 K = 1)
+        elif self.model_type == ModelType.Custom:
+            self.train_dataset, self.validation_dataset, self.test_dataset = CustomDataset.get_dataset_Custom(
+                                                                                            path_proccessed_data=self.proccessed_data_path,
+                                                                                            train_ratio = self.train_ratio, 
+                                                                                            test_ratio = self.test_ratio, 
+                                                                                            val_ratio = self.val_ratio, 
+                                                                                            batch_size=self.batch_size,
+                                                                                            epsilon=self.epsilon,
+                                                                                            lamda=self.lamda,
+                                                                                            nodes_size=self.nodes_size,
+                                                                                            datareader= self.datareader)
 
+            self.model = CustomModel(node_features = self.num_features, K = 3)
+
+            
         device = "cpu"
         if torch.cuda.is_available():
             device = "cuda:0"
@@ -174,7 +211,7 @@ class Learn():
 
     def set_data(config,info,param):
         learn = Learn(param,info,config)
-        learn.__set_for_train()
+        learn.__set_for_data()
 
     def start(config, info, param):
         learn = Learn(param,info,config)
