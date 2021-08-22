@@ -1,11 +1,14 @@
 import math
 from random import sample
+from typing import Union
 
 from geopy.distance import geodesic
 import os
 from glob import glob
 import numpy as np
 from enum import Enum
+
+from torch_geometric.data.data import Data
 
 class DatasetSizeNumber(Enum):
     r"""
@@ -61,6 +64,7 @@ class DataReader():
             __read_nodes_data : set nodes_location from Metadata (may contain data from empty nodes) -> None - private
     """
 
+    interval_per_day = 288
     def __init__(self,path_raw_data : str,graph_info_txt : str) -> None:
         r"""
             Constructor, reads all the necessary data.
@@ -123,7 +127,6 @@ class DataReader():
                 for line in content:
                     line = line.split(',')
                     line = [line1.replace("\n","") for line1 in line]
-                    line[0]
                     if not (line[9] == '' or line[10] == '' or line[11] == ''):
                         good_nodes.append(line[1])
                     index -=1
@@ -131,6 +134,22 @@ class DataReader():
                         self.good_nodes = good_nodes
                         self.empty_nodes = empty_nodes
                         return
+
+    def get_clean_data_by_nodes(self, size : DatasetSize,path_proccessed_data : str) -> Union[list,list]:
+        assert len(self.X) > Graph.get_number_nodes_by_size(size)
+        new_X = []
+        new_Y = []
+        nodes_index = 0
+        nodes_ids = Graph.get_nodes_ids_by_size(path_proccessed_data,size)
+        for index,tuple in enumerate(zip(self.X,self.Y)):
+            if int(self.nodes_location[nodes_index][0]) in nodes_ids:
+                new_X.append(tuple[0])
+                new_Y.append([tuple[1]])
+            nodes_index +=1
+            if nodes_index == len(self.nodes_location):
+                nodes_index = 0
+        return new_X,new_Y
+
 
     def __read_data(self) -> None :
         r"""
@@ -141,8 +160,6 @@ class DataReader():
 
         X = []
         Y = []
-        empty_nodes = []
-        good_nodes = []
         txtFiles = os.path.join(self.__path_raw_data,"*","*.txt")
         nb_days = 0
         for file in glob(txtFiles):
@@ -152,13 +169,12 @@ class DataReader():
                 for line in content:
                     line = line.split(',')
                     line = [line1.replace("\n","") for line1 in line]
-                    if line[9] == '' or line[10] == '' or line[8] == '' or line[11] == '':
-                        empty_nodes.append(line[1])
-                    else:
-                        good_nodes.append(line[1])
+                    if not(line[9] == '' or line[10] == '' or line[11] == ''):
                         Y.append((float)(line[11]))
                         X.append([(float)(line[9]),(float)(line[10])])
             nb_days += 1
+            if nb_days == 5:
+                break
         self.X = X
         self.Y = Y
         self.nb_days = nb_days
@@ -181,7 +197,7 @@ class DataReader():
                 else:
                     line = line.split('\t')
                     line = line[:-1]
-                    if line[0] not in self.empty_nodes:
+                    if line[0] in self.good_nodes:
                         nodes_location.append([line[0],line[8],line[9]])
         self.nodes_location = nodes_location
 
@@ -301,13 +317,13 @@ class Graph():
             name_nodes = os.path.join(self.__path_processed_data,'nodes_{0}.npy'.format(str(size.name)))
             np.save(name_nodes,nodes)
 
-    def __get_nodes_ids_by_size(self,size) -> list:
+    def get_nodes_ids_by_size(path_processed_data : str,size : DatasetSize) -> list:
         r"""
             Instance function.
             Returns graph nodes ids based by size.
             Returns list.
         """
-        name_nodes = os.path.join(self.__path_processed_data,'nodes_{0}.npy'.format(str(size.name)))
+        name_nodes = os.path.join(path_processed_data,'nodes_{0}.npy'.format(str(size.name)))
         return np.load(name_nodes)
 
     def __process_graph_info(self) -> None:
@@ -322,7 +338,7 @@ class Graph():
             epsilon = info[0]           
             lamda = info[1]           
             size = info[2]
-            self.__save_graph(self.__get_nodes_ids_by_size(size),nodes_location,epsilon,lamda,size)  
+            self.__save_graph(Graph.get_nodes_ids_by_size(self.__path_processed_data,size),nodes_location,epsilon,lamda,size)  
 
 
     def __save_graph(self,nodes,nodes_location,epsilon,lamda,size : DatasetSize) -> None:
@@ -333,7 +349,7 @@ class Graph():
         """
         edge_index = []
         edge_weight = []
-        nodes_location = [node for node in nodes_location if node[0] in nodes]
+        nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
         self.num_nodes = len(nodes_location)
         print("Saving graph with configuration : epsilon = {0}, lamda = {1}, size = {2}".format(str(epsilon),str(lamda),str(size.name)))
         for i in range(len(nodes_location) - 1):
@@ -357,6 +373,8 @@ class Graph():
         
         name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
         name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
+        print(np.array(edge_weight).shape)
+        print(np.array(edge_index).shape)
         np.save(name_index,edge_index)
         np.save(name_weight,edge_weight)
 

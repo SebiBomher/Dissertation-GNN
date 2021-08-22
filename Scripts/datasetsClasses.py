@@ -42,12 +42,14 @@ class DatasetClass(object):
         self.graph = Graph(self.proccessed_data_path,self.epsilon,self.lamda,self.size,self.data_reader)
 
     def get_edge_index(self):
+        print(np.array(self.graph.edge_index).shape)
         if self.graph.edge_index is None:
             return self.graph.edge_index
         else:
             return torch.LongTensor(self.graph.edge_index)
 
     def get_edge_weight(self):
+        print(np.array(self.graph.edge_weight).shape)
         if self.graph.edge_weight is None:
             return self.graph.edge_weight
         else:
@@ -75,8 +77,8 @@ class DatasetClass(object):
      
     def __get_item__(self, time_index: int):
         x = self.__get_features(time_index)
-        edge_index = self.__get_edge_index()
-        edge_weight = self.__get_edge_weight()
+        edge_index = self.get_edge_index()
+        edge_weight = self.get_edge_weight()
         y = self.__get_target(time_index)
 
         snapshot = Data(x = x,
@@ -97,6 +99,7 @@ class DatasetClass(object):
     def __iter__(self):
         self.t = self.time_start
         return self
+
 class CustomDataset(DatasetClass):
     
     def __init__(self,
@@ -122,7 +125,7 @@ class CustomDataset(DatasetClass):
         return len(CustomDataset.__get_tuple_to_add(os.path.join(proccessed_data_path,"Custom"))) > 0
 
     def get_dataset_Custom(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader):
-        DataTraffic = CustomDataset(path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader)
+        DataTraffic = CustomDataset(path_proccessed_data,batch_size,lamda,epsilon,nodes_size,datareader)
         train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
 
@@ -162,18 +165,30 @@ class CustomDataset(DatasetClass):
                                                     self.snapshot_count)
         
         return train_iterator, test_iterator, val_iterator
-
+        
+    def __arrange_data(self,data,num_nodes):
+        New_Data = []
+        for i in range((int)(len(data)/num_nodes)):
+            Data = []
+            for k in range(num_nodes):
+                Data.append(data[(i * num_nodes) + k])
+            New_Data.append(Data)
+        return New_Data
+        
     def __save_proccess_data(self,batch_size : int, datareader : DataReader, size : DatasetSize):
         print("Saving data with configuration : batch_size = {0}, size = {1}".format(str(batch_size),str(size.name)))
-        
-        X = datareader.X
-        Y = datareader.Y
-        
+
+        X,Y = datareader.get_clean_data_by_nodes(size,self.proccessed_data_path)
+
+        X = self.__arrange_data(X,Graph.get_number_nodes_by_size(size))
+        Y = self.__arrange_data(Y,Graph.get_number_nodes_by_size(size))
+
         nodes_size = Graph.get_number_nodes_by_size(size)
-        new_size = (int)(datareader.nb_days / batch_size)
+        new_size = (int)(datareader.interval_per_day * datareader.nb_days / batch_size)
         data_size = len(X)
+
         if new_size * batch_size != data_size:
-            difference = data_size-((new_size - 1) * batch_size)
+            difference = data_size - ((new_size - 1) * batch_size)
             X = X[:data_size-difference]
             Y = Y[:data_size-difference]
             new_size -= 1
@@ -211,6 +226,51 @@ class CustomDataset(DatasetClass):
             batch_size = tuple[0]
             size = tuple[1]
             self.__save_proccess_data(batch_size,self.data_reader,size)
+
+    def __get_features(self, time_index: int):
+        name_x = os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'X_{0}.npy'.format(str(time_index))) 
+        X = np.load(name_x)
+        if X is None:
+            return X
+        else:       
+            return torch.FloatTensor(X)
+
+    def __get_target(self, time_index: int):
+        name_y = os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'Y_{0}.npy'.format(str(time_index))) 
+        Y = np.load(name_y)
+        if Y is None:
+            return Y
+        else:
+            if Y.dtype.kind == 'i':
+                return torch.LongTensor(Y)
+            elif Y.dtype.kind == 'f':
+                return torch.FloatTensor(Y)
+
+     
+    def __get_item__(self, time_index: int):
+        x = self.__get_features(time_index)
+        edge_index = self.get_edge_index()
+        edge_weight = self.get_edge_weight()
+        y = self.__get_target(time_index)
+
+        snapshot = Data(x = x,
+                        edge_index = edge_index,
+                        edge_attr = edge_weight,
+                        y = y)
+        return snapshot
+
+    def __next__(self):
+        if self.t < self.time_stop:
+            snapshot = self.__get_item__(self.t)
+            self.t = self.t + 1
+            return snapshot
+        else:
+            self.t = self.time_start
+            raise StopIteration
+
+    def __iter__(self):
+        self.t = self.time_start
+        return self
 
 class STConvDataset(DatasetClass):
     
@@ -294,12 +354,10 @@ class STConvDataset(DatasetClass):
         print("Saving data with configuration : time_steps = {0}, batch_size = {1}, size = {2}".format(str(time_steps),str(batch_size),str(size.name)))
 
 
-        interval_per_day = (int)(24 * 60 / 5)
+        interval_per_day = datareader.interval_per_day
         Skip = (int)(time_steps/2) * 2
         interval_per_day -= Skip
-
-        X = datareader.X
-        Y = datareader.Y
+        X,Y = datareader.get_clean_data_by_nodes(size,self.proccessed_data_path)
         
         nodes_size = Graph.get_number_nodes_by_size(size)
 

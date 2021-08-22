@@ -30,8 +30,8 @@ class CustomModel(Module):
         super(CustomModel, self).__init__()
         self.GCLSTM_1 = GCLSTM(in_channels= node_features,out_channels= 64,K=K)
         self.GCLSTM_2 = GCLSTM(in_channels= 32,out_channels= 16,K=K)
-        self.Conv2d_1 = Conv2d(in_channels=64,out_channels=32)
-        self.Conv2d_2 = Conv2d(in_channels=16,out_channels=node_features)
+        self.Conv2d_1 = Conv2d(in_channels=64,out_channels=32,kernel_size=3)
+        self.Conv2d_2 = Conv2d(in_channels=16,out_channels=node_features,kernel_size=3)
         self.linear = Linear(node_features, 1)
         self.ReLU = ReLU()
 
