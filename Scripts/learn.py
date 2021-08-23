@@ -8,7 +8,7 @@ import numpy as np
 import copy
 import torch
 import os
-from torch.optim import Adam,RMSprop,Adamax
+from torch.optim import Adam,RMSprop,Adamax,AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from Scripts.datasetsClasses import CustomDataset, STConvDataset
 from enum import Enum
@@ -28,7 +28,7 @@ class OptimiserType(Enum):
     Adam = 0
     RMSprop = 1
     Adamax = 2
-
+    AdamW = 3
 class LossFunction():
     
     def RMSE(y_pred,y_true) -> Tensor:
@@ -94,6 +94,7 @@ class Learn():
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
+            print("Epoch {0} : Validation loss {1} ; Train loss {2};".format(epoch,val_loss,loss))
         return val_model
             
     def __val(self,epoch):
@@ -183,7 +184,6 @@ class Learn():
                                                                                             lamda=self.lamda,
                                                                                             nodes_size=self.nodes_size,
                                                                                             datareader= self.datareader)
-
             self.model = CustomModel(node_features = self.num_features, K = 3)
 
             
@@ -200,6 +200,8 @@ class Learn():
             self.optimizer = RMSprop(self.model.parameters(), lr=self.learning_rate)
         elif self.optimizer_type == OptimiserType.Adamax:
             self.optimizer = Adamax(self.model.parameters(), lr=self.learning_rate)
+        elif self.optimizer_type == OptimiserType.AdamW:
+            self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate)
 
         self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5, threshold=0.00000001, threshold_mode='abs')
 

@@ -1,10 +1,8 @@
 
-import torch
 from torch_geometric_temporal.nn.attention.stgcn import STConv
-from torch_geometric_temporal.nn.attention.astgcn import ASTGCN
-from torch_geometric_temporal.nn.attention.mstgcn import MSTGCN
 from torch_geometric_temporal.nn.recurrent import GCLSTM
-from torch.nn import ReLU,Linear,Module,Conv2d
+from torch_geometric.nn import GCNConv
+from torch.nn import ReLU,Linear,Module,MaxPool1d,BatchNorm1d,Dropout
 
 class STConvModel(Module):
     def __init__(self, node_features,num_nodes,hidden_channels,kernel_size,K):
@@ -28,61 +26,45 @@ class STConvModel(Module):
 class CustomModel(Module):
     def __init__(self,node_features,K):
         super(CustomModel, self).__init__()
-        self.GCLSTM_1 = GCLSTM(in_channels= node_features,out_channels= 64,K=K)
-        self.GCLSTM_2 = GCLSTM(in_channels= 32,out_channels= 16,K=K)
-        self.Conv2d_1 = Conv2d(in_channels=64,out_channels=32,kernel_size=3)
-        self.Conv2d_2 = Conv2d(in_channels=16,out_channels=node_features,kernel_size=3)
-        self.linear = Linear(node_features, 1)
+        self.GCLSTM1 = GCLSTM(in_channels= node_features,out_channels= 128,K=K)
+        self.Conv1 = GCNConv(in_channels=128,out_channels=128)
+        self.GCLSTM2 = GCLSTM(in_channels= 64,out_channels= 64,K=K)
+        self.Conv2 = GCNConv(in_channels=64,out_channels=64)
+        self.GCLSTM3 = GCLSTM(in_channels= 32,out_channels= 32,K=K)
+        self.Conv3 = GCNConv(in_channels=32,out_channels=32)
+        self.GCLSTM4 = GCLSTM(in_channels= 16,out_channels= 16,K=K)
+        self.Conv4 = GCNConv(in_channels=16,out_channels=16)
+        self.linear = Linear(8, 1)
+        self.MaxPool = MaxPool1d(kernel_size=2)
+        self.BatchNorm = BatchNorm1d(num_features=8)
+        self.Dropout = Dropout()
         self.ReLU = ReLU()
 
-    def block(self, x, edge_index, edge_weight):
-        x = self.GCLSTM_1(x, edge_index, edge_weight)
-        x = self.ReLU(x)
-        x = self.Conv2d_1(x)
-        x = self.ReLU(x)
-        x = self.GCLSTM_2(x, edge_index, edge_weight)
-        x = self.ReLU(x)
-        x = self.Conv2d_2(x)
-        return x
-
     def forward(self, x, edge_index, edge_weight):
-        Left = self.block(x, edge_index, edge_weight)
-        Right = self.block(x, edge_index, edge_weight)
-        x = torch.cat((Left, Right), 0)
+        x = self.GCLSTM1(x, edge_index, edge_weight)
+        x = self.Conv1(x[0], edge_index)
         x = self.ReLU(x)
-        Left = self.block(x, edge_index, edge_weight)
-        Right = self.block(x, edge_index, edge_weight)
+        x = self.BatchNorm(x)
+        x = self.Dropout(x)
+        x = self.MaxPool(x)
+        x = self.GCLSTM2(x, edge_index, edge_weight)
+        x = self.Conv2(x[0], edge_index)
         x = self.ReLU(x)
-        x = self.linear(x)
-        return x
-
-class ASTGCNModel(torch.nn.Module):
-    def __init__(self,nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input,num_of_vertices):
-        super(ASTGCNModel, self).__init__()
-        self.ASTGCN1 =ASTGCN(nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input,num_of_vertices)
-        self.ASTGCN2 =ASTGCN(nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input,num_of_vertices)
-        self.linear = torch.nn.Linear(in_channels, 1)
-
-    def forward(self, x, edge_index):
-        x = self.ASTGCN1(x, edge_index)
-        x = x.relu()
-        x = self.ASTGCN2(x, edge_index)
-        x = x.relu()
-        x = self.linear(x)
-        return x
-
-class MSTGCNModel(torch.nn.Module):
-    def __init__(self,nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input):
-        super(MSTGCNModel, self).__init__()
-        self.MSTGCN1 = MSTGCN(nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input)
-        self.MSTGCN2 = MSTGCN(nb_block,in_channels,K,nb_chev_filter,nb_time_filter,time_strides,num_for_predict,len_input)
-        self.linear = torch.nn.Linear(in_channels, 1)
-
-    def forward(self, x, edge_index):
-        x = self.MSTGCN1(x, edge_index)
-        x = x.relu()
-        x = self.MSTGCN1(x, edge_index)
-        x = x.relu()
+        x = self.BatchNorm(x)
+        x = self.Dropout(x)
+        x = self.MaxPool(x)
+        x = self.GCLSTM3(x, edge_index, edge_weight)
+        x = self.Conv3(x[0], edge_index)
+        x = self.ReLU(x)
+        x = self.BatchNorm(x)
+        x = self.Dropout(x)
+        x = self.MaxPool(x)
+        x = self.GCLSTM4(x, edge_index, edge_weight)
+        x = self.Conv4(x[0], edge_index)
+        x = self.ReLU(x)
+        x = self.BatchNorm(x)
+        x = self.Dropout(x)
+        x = self.MaxPool(x)
         x = self.linear(x)
         return x
 

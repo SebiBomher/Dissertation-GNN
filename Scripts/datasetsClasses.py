@@ -1,8 +1,8 @@
 import os
 import torch
 import numpy as np
-from torch_geometric.data import Data
 import glob
+from torch_geometric.data import Data
 from Scripts.data_proccess import DatasetSize,DataReader,Graph
 
 class DatasetClass(object):
@@ -42,14 +42,12 @@ class DatasetClass(object):
         self.graph = Graph(self.proccessed_data_path,self.epsilon,self.lamda,self.size,self.data_reader)
 
     def get_edge_index(self):
-        print(np.array(self.graph.edge_index).shape)
         if self.graph.edge_index is None:
             return self.graph.edge_index
         else:
             return torch.LongTensor(self.graph.edge_index)
 
     def get_edge_weight(self):
-        print(np.array(self.graph.edge_weight).shape)
         if self.graph.edge_weight is None:
             return self.graph.edge_weight
         else:
@@ -213,8 +211,8 @@ class CustomDataset(DatasetClass):
     def __get_tuple_to_add(proccessed_data_path):
 
         to_create = []
-        for batch_size in [8]:
-            for size in [DatasetSize.Experimental]:
+        for batch_size in CustomDataset.batch_sizes_array:
+            for size in DatasetSize:
                 name_folder = os.path.join(proccessed_data_path,'Data_{0}_{1}'.format(str(batch_size),str(size.name)))
                 if not os.path.exists(name_folder):
                     to_create.append([batch_size,size])

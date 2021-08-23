@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     config_partial = {
         "batch_size": 8,
-        "hidden_channels": 32,
+        "hidden_channels": 64,
         "K" : 1,
         "epsilon" : 0.5,
         "optimizer_type" : OptimiserType.Adam,

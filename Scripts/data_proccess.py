@@ -1,11 +1,10 @@
 import math
+import os
+import numpy as np
 from random import sample
 from typing import Union
-
 from geopy.distance import geodesic
-import os
 from glob import glob
-import numpy as np
 from enum import Enum
 
 from torch_geometric.data.data import Data
@@ -28,16 +27,16 @@ class DatasetSizeNumber(Enum):
 class DatasetSize(Enum):
     r"""
         Types of Dataset Sizes.
-            Full = 0
-            Medium = 1
-            Small = 2
-            Experimental = 3
+            Experimental = 0
+            Small = 1
+            Medium = 2
+            Full = 3
     """
 
-    Full = 0
-    Medium = 1
-    Small = 2
-    Experimental = 3
+    Experimental = 0
+    Small = 1
+    Medium = 2
+    Full = 3
 
 class DataReader():
     r"""
@@ -128,7 +127,9 @@ class DataReader():
                     line = line.split(',')
                     line = [line1.replace("\n","") for line1 in line]
                     if not (line[9] == '' or line[10] == '' or line[11] == ''):
-                        good_nodes.append(line[1])
+                        good_nodes.append((int)(line[1]))
+                    else:
+                        empty_nodes.append((int)(line[1]))
                     index -=1
                     if index == 0:
                         self.good_nodes = good_nodes
@@ -173,8 +174,6 @@ class DataReader():
                         Y.append((float)(line[11]))
                         X.append([(float)(line[9]),(float)(line[10])])
             nb_days += 1
-            if nb_days == 5:
-                break
         self.X = X
         self.Y = Y
         self.nb_days = nb_days
@@ -197,7 +196,7 @@ class DataReader():
                 else:
                     line = line.split('\t')
                     line = line[:-1]
-                    if line[0] in self.good_nodes:
+                    if (int)(line[0]) in self.good_nodes:
                         nodes_location.append([line[0],line[8],line[9]])
         self.nodes_location = nodes_location
 
@@ -338,15 +337,17 @@ class Graph():
             epsilon = info[0]           
             lamda = info[1]           
             size = info[2]
-            self.__save_graph(Graph.get_nodes_ids_by_size(self.__path_processed_data,size),nodes_location,epsilon,lamda,size)  
+            self.__save_graph(nodes_location,epsilon,lamda,size)  
 
 
-    def __save_graph(self,nodes,nodes_location,epsilon,lamda,size : DatasetSize) -> None:
+    def __save_graph(self,nodes_location,epsilon,lamda,size : DatasetSize) -> None:
         r"""
             Instance function.
             Save a graph by a configuration.
             Returns Nothing.
         """
+
+        nodes = Graph.get_nodes_ids_by_size(self.__path_processed_data,size)
         edge_index = []
         edge_weight = []
         nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
@@ -373,8 +374,6 @@ class Graph():
         
         name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
         name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
-        print(np.array(edge_weight).shape)
-        print(np.array(edge_index).shape)
         np.save(name_index,edge_index)
         np.save(name_weight,edge_weight)
 
