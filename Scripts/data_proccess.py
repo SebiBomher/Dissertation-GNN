@@ -388,6 +388,7 @@ class Graph():
 
         name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size.name)))
         self.edge_index = np.load(name_index)
+
     def get_number_nodes_by_size(size : DatasetSize) -> int:
         r"""
             Class function.

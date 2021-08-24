@@ -40,15 +40,19 @@ if __name__ == '__main__':
     }
     nb_epoch = 200
     for datasize in DatasetSize:
+
         param["nodes_size"] = datasize
+
         scheduler = ASHAScheduler(
             max_t=nb_epoch,
             grace_period=20,
             reduction_factor=3)
+
         info = {
             "criterion": LossFunction.MAE,
             "model_type" : ModelType.Custom
         }
+
         config["hidden_channels"] = tune.choice([0])
         result = tune.run(
             tune.with_parameters(Learn.start, info = info, param = param),
@@ -59,9 +63,11 @@ if __name__ == '__main__':
             num_samples=num_samples,
             scheduler=scheduler
         )
+
         best_trial = result.get_best_trial("loss", "min", "last")
         print("Best trial config: {}".format(best_trial.config))
         print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))
+        
         info = {
             "criterion": LossFunction.MAE,
             "model_type" : ModelType.STCONV

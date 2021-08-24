@@ -173,31 +173,18 @@ class CustomDataset(DatasetClass):
             New_Data.append(Data)
         return New_Data
         
-    def __save_proccess_data(self,batch_size : int, datareader : DataReader, size : DatasetSize):
-        print("Saving data with configuration : batch_size = {0}, size = {1}".format(str(batch_size),str(size.name)))
+    def __save_proccess_data(self, datareader : DataReader, size : DatasetSize):
+        print("Saving data with configuration : batch_size = {0}, size = {1}".format(str(size.name)))
 
         X,Y = datareader.get_clean_data_by_nodes(size,self.proccessed_data_path)
 
         X = self.__arrange_data(X,Graph.get_number_nodes_by_size(size))
         Y = self.__arrange_data(Y,Graph.get_number_nodes_by_size(size))
 
-        nodes_size = Graph.get_number_nodes_by_size(size)
-        new_size = (int)(datareader.interval_per_day * datareader.nb_days / batch_size)
-        data_size = len(X)
-
-        if new_size * batch_size != data_size:
-            difference = data_size - ((new_size - 1) * batch_size)
-            X = X[:data_size-difference]
-            Y = Y[:data_size-difference]
-            new_size -= 1
-
-        X = np.array(X).reshape(new_size,batch_size,nodes_size,2)
-        Y = np.array(Y).reshape(new_size,batch_size,nodes_size,1)
-
         if not os.path.exists(self.proccessed_data_path_model):
             os.makedirs(self.proccessed_data_path_model)
 
-        name_folder = os.path.join(self.proccessed_data_path_model,'Data_{0}_{1}'.format(str(batch_size),str(size.name)))
+        name_folder = os.path.join(self.proccessed_data_path_model,'Data_{0}'.format(str(size.name)))
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
 
@@ -211,19 +198,17 @@ class CustomDataset(DatasetClass):
     def __get_tuple_to_add(proccessed_data_path):
 
         to_create = []
-        for batch_size in CustomDataset.batch_sizes_array:
-            for size in DatasetSize:
-                name_folder = os.path.join(proccessed_data_path,'Data_{0}_{1}'.format(str(batch_size),str(size.name)))
-                if not os.path.exists(name_folder):
-                    to_create.append([batch_size,size])
+        for size in [DatasetSize.Experimental]:
+            name_folder = os.path.join(proccessed_data_path,'Data_{0}_{1}'.format(str(size.name)))
+            if not os.path.exists(name_folder):
+                to_create.append([size])
         return to_create
     
     def __save_dataset(self):
         to_create = CustomDataset.__get_tuple_to_add(self.proccessed_data_path_model)
         for tuple in to_create:
-            batch_size = tuple[0]
-            size = tuple[1]
-            self.__save_proccess_data(batch_size,self.data_reader,size)
+            size = tuple[0]
+            self.__save_proccess_data(self.data_reader,size)
 
     def __get_features(self, time_index: int):
         name_x = os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'X_{0}.npy'.format(str(time_index))) 

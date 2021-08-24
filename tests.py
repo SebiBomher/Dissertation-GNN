@@ -11,7 +11,7 @@ if __name__ == '__main__':
     
 
     config_partial = {
-        "batch_size": 8,
+        "batch_size": 16,
         "hidden_channels": 64,
         "K" : 1,
         "epsilon" : 0.5,
