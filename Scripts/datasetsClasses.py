@@ -4,6 +4,7 @@ import numpy as np
 import glob
 from torch_geometric.data import Data
 from Scripts.data_proccess import DatasetSize,DataReader,Graph
+from torchvision import transforms
 
 class DatasetClass(object):
     r"""
@@ -18,6 +19,7 @@ class DatasetClass(object):
                 epsilon : float,
                 size : DatasetSize,
                 datareader : DataReader,
+                device : str = 'cpu',
                 time_start : int = 0 ,
                 time_stop : float = -1):
         r"""
@@ -31,6 +33,7 @@ class DatasetClass(object):
         self.time_stop = time_stop
         self.data_reader = datareader
         self.size = size
+        self.device = device
         self.__check_batchsize()
         self.__set_graph()
 
@@ -45,73 +48,29 @@ class DatasetClass(object):
         if self.graph.edge_index is None:
             return self.graph.edge_index
         else:
-            return torch.LongTensor(self.graph.edge_index)
+            return torch.LongTensor(self.graph.edge_index).to(self.device)
 
     def get_edge_weight(self):
         if self.graph.edge_weight is None:
             return self.graph.edge_weight
         else:
-            return torch.FloatTensor(self.graph.edge_weight)
-
-    def __get_features(self, time_index: int):
-        name_x = os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'X_{0}.npy'.format(str(time_index))) 
-        X = np.load(name_x)
-        if X is None:
-            return X
-        else:       
-            return torch.FloatTensor(X)
-
-    def __get_target(self, time_index: int):
-        name_y = os.path.join(self.proccessed_data_path,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'Y_{0}.npy'.format(str(time_index))) 
-        Y = np.load(name_y)
-        if Y is None:
-            return Y
-        else:
-            if Y.dtype.kind == 'i':
-                return torch.LongTensor(Y)
-            elif Y.dtype.kind == 'f':
-                return torch.FloatTensor(Y)
-
-     
-    def __get_item__(self, time_index: int):
-        x = self.__get_features(time_index)
-        edge_index = self.get_edge_index()
-        edge_weight = self.get_edge_weight()
-        y = self.__get_target(time_index)
-
-        snapshot = Data(x = x,
-                        edge_index = edge_index,
-                        edge_attr = edge_weight,
-                        y = y)
-        return snapshot
-
-    def __next__(self):
-        if self.t < self.time_stop:
-            snapshot = self.__get_item__(self.t)
-            self.t = self.t + 1
-            return snapshot
-        else:
-            self.t = self.time_start
-            raise StopIteration
-
-    def __iter__(self):
-        self.t = self.time_start
-        return self
+            return torch.FloatTensor(self.graph.edge_weight).to(self.device)
 
 class CustomDataset(DatasetClass):
     
     def __init__(self,
                 proccessed_data_path : str,
-                batch_size : int,
                 lamda : int,
                 epsilon : float,
                 size : DatasetSize,
                 datareader : DataReader,
+                device : str = 'cpu',
                 time_start : int = 0 ,
                 time_stop : float = -1):
 
-        super().__init__(proccessed_data_path,batch_size,lamda,epsilon,size,datareader,time_start,time_stop)
+        super().__init__(proccessed_data_path,8,lamda,epsilon,size,datareader,device,time_start,time_stop)
         self.proccessed_data_path_model = os.path.join(self.proccessed_data_path,"Custom")
+        self.transform = transforms.Compose([transforms.ToTensor()])
         self.__save_dataset()
         self.__check_temporal_consistency()
         self.__set_snapshot_count()
@@ -122,13 +81,13 @@ class CustomDataset(DatasetClass):
     def need_load(proccessed_data_path):
         return len(CustomDataset.__get_tuple_to_add(os.path.join(proccessed_data_path,"Custom"))) > 0
 
-    def get_dataset_Custom(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader):
-        DataTraffic = CustomDataset(path_proccessed_data,batch_size,lamda,epsilon,nodes_size,datareader)
+    def get_dataset_Custom(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader,device : str):
+        DataTraffic = CustomDataset(path_proccessed_data,lamda,epsilon,nodes_size,datareader,device)
         train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
 
     def __set_snapshot_count(self): 
-        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name))),"X_*.npy"))
+        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_model,"Data_{0}".format(str(self.size.name))),"X_*.npy"))
 
     def __split_dataset(self, train_ratio: float=0.6, test_ratio: float = 0.2, val_ratio: float = 0.2):
         assert train_ratio + test_ratio + val_ratio == 1
@@ -136,29 +95,29 @@ class CustomDataset(DatasetClass):
         time_test = time_train + int(test_ratio*self.snapshot_count)
 
         train_iterator = CustomDataset(self.proccessed_data_path,
-                                                    self.batch_size,
                                                     self.lamda,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
+                                                    self.device,
                                                     0,
                                                     time_train + 1)
 
         test_iterator = CustomDataset(self.proccessed_data_path,
-                                                    self.batch_size,
                                                     self.lamda,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
+                                                    self.device,
                                                     time_train + 1,
                                                     time_test)
 
         val_iterator = CustomDataset(self.proccessed_data_path,
-                                                    self.batch_size,
                                                     self.lamda,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
+                                                    self.device,
                                                     time_test + 1,
                                                     self.snapshot_count)
         
@@ -174,7 +133,7 @@ class CustomDataset(DatasetClass):
         return New_Data
         
     def __save_proccess_data(self, datareader : DataReader, size : DatasetSize):
-        print("Saving data with configuration : batch_size = {0}, size = {1}".format(str(size.name)))
+        print("Saving data with configuration : size = {0}".format(str(size.name)))
 
         X,Y = datareader.get_clean_data_by_nodes(size,self.proccessed_data_path)
 
@@ -198,8 +157,8 @@ class CustomDataset(DatasetClass):
     def __get_tuple_to_add(proccessed_data_path):
 
         to_create = []
-        for size in [DatasetSize.Experimental]:
-            name_folder = os.path.join(proccessed_data_path,'Data_{0}_{1}'.format(str(size.name)))
+        for size in DatasetSize:
+            name_folder = os.path.join(proccessed_data_path,'Data_{0}'.format(str(size.name)))
             if not os.path.exists(name_folder):
                 to_create.append([size])
         return to_create
@@ -211,40 +170,33 @@ class CustomDataset(DatasetClass):
             self.__save_proccess_data(self.data_reader,size)
 
     def __get_features(self, time_index: int):
-        name_x = os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'X_{0}.npy'.format(str(time_index))) 
+        name_x = os.path.join(self.proccessed_data_path_model,"Data_{0}".format(str(self.size.name)),'X_{0}.npy'.format(str(time_index))) 
         X = np.load(name_x)
         if X is None:
             return X
         else:       
-            return torch.FloatTensor(X)
+            return torch.FloatTensor(X).to(self.device)
 
     def __get_target(self, time_index: int):
-        name_y = os.path.join(self.proccessed_data_path_model,"Data_{0}_{1}".format(str(self.batch_size),str(self.size.name)),'Y_{0}.npy'.format(str(time_index))) 
+        name_y = os.path.join(self.proccessed_data_path_model,"Data_{0}".format(str(self.size.name)),'Y_{0}.npy'.format(str(time_index))) 
         Y = np.load(name_y)
         if Y is None:
             return Y
         else:
             if Y.dtype.kind == 'i':
-                return torch.LongTensor(Y)
+                return torch.LongTensor(Y).to(self.device)
             elif Y.dtype.kind == 'f':
-                return torch.FloatTensor(Y)
+                return torch.FloatTensor(Y).to(self.device)
 
      
-    def __get_item__(self, time_index: int):
+    def __getitem__(self, time_index: int):
         x = self.__get_features(time_index)
-        edge_index = self.get_edge_index()
-        edge_weight = self.get_edge_weight()
         y = self.__get_target(time_index)
-
-        snapshot = Data(x = x,
-                        edge_index = edge_index,
-                        edge_attr = edge_weight,
-                        y = y)
-        return snapshot
+        return x,y
 
     def __next__(self):
         if self.t < self.time_stop:
-            snapshot = self.__get_item__(self.t)
+            snapshot = self.__getitem__(self.t)
             self.t = self.t + 1
             return snapshot
         else:
@@ -254,6 +206,9 @@ class CustomDataset(DatasetClass):
     def __iter__(self):
         self.t = self.time_start
         return self
+    
+    def __len__(self):
+        return self.snapshot_count
 
 class STConvDataset(DatasetClass):
     
@@ -267,10 +222,11 @@ class STConvDataset(DatasetClass):
                 epsilon : float,
                 size : DatasetSize,
                 datareader : DataReader,
+                device : str = 'cpu',
                 time_start : int = 0 ,
                 time_stop : float = -1):
 
-        super().__init__(proccessed_data_path,batch_size,lamda,epsilon,size,datareader,time_start,time_stop)
+        super().__init__(proccessed_data_path,batch_size,lamda,epsilon,size,datareader,device,time_start,time_stop)
         self.proccessed_data_path_STCONV = os.path.join(self.proccessed_data_path,"STCONV")
         self.time_steps = time_steps
         self.__check_timesteps()
@@ -284,8 +240,8 @@ class STConvDataset(DatasetClass):
     def need_load(proccessed_data_path):
         return len(STConvDataset.__get_tuple_to_add(os.path.join(proccessed_data_path,"STCONV"))) > 0
 
-    def get_dataset_STCONV(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,time_steps : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader):
-        DataTraffic = STConvDataset(path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader)
+    def get_dataset_STCONV(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,time_steps : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader,device : str):
+        DataTraffic = STConvDataset(path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader,device)
         train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
 
@@ -307,6 +263,7 @@ class STConvDataset(DatasetClass):
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
+                                                    self.device,
                                                     0,
                                                     time_train + 1)
 
@@ -317,6 +274,7 @@ class STConvDataset(DatasetClass):
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
+                                                    self.device,
                                                     time_train + 1,
                                                     time_test)
 
@@ -327,6 +285,7 @@ class STConvDataset(DatasetClass):
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
+                                                    self.device,
                                                     time_test + 1,
                                                     self.snapshot_count)
         
@@ -409,7 +368,7 @@ class STConvDataset(DatasetClass):
         if X is None:
             return X
         else:       
-            return torch.FloatTensor(X)
+            return torch.FloatTensor(X).to(self.device)
 
     def __get_target(self, time_index: int):
         name_y = os.path.join(self.proccessed_data_path_STCONV,"Data_{0}_{1}_{2}".format(str(self.time_steps),str(self.batch_size),str(self.size.name)),'Y_{0}.npy'.format(str(time_index))) 
@@ -418,11 +377,11 @@ class STConvDataset(DatasetClass):
             return Y
         else:
             if Y.dtype.kind == 'i':
-                return torch.LongTensor(Y)
+                return torch.LongTensor(Y).to(self.device)
             elif Y.dtype.kind == 'f':
-                return torch.FloatTensor(Y)
+                return torch.FloatTensor(Y).to(self.device)
 
-    def __get_item__(self, time_index: int):
+    def __getitem__(self, time_index: int):
             x = self.__get_features(time_index)
             edge_index = self.get_edge_index()
             edge_weight = self.get_edge_weight()
@@ -433,4 +392,19 @@ class STConvDataset(DatasetClass):
                             edge_attr = edge_weight,
                             y = y)
             return snapshot
-     
+
+    def __next__(self):
+        if self.t < self.time_stop:
+            snapshot = self.__getitem__(self.t)
+            self.t = self.t + 1
+            return snapshot
+        else:
+            self.t = self.time_start
+            raise StopIteration
+
+    def __iter__(self):
+        self.t = self.time_start
+        return self
+
+    def __len__(self):
+        return self.snapshot_count

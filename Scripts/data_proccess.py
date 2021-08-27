@@ -36,7 +36,7 @@ class DatasetSize(Enum):
     Experimental = 0
     Small = 1
     Medium = 2
-    Full = 3
+    # Full = 3
 
 class DataReader():
     r"""

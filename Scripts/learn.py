@@ -1,6 +1,7 @@
 from ray import tune
 from torch import nn
 from torch.functional import Tensor
+from torch.utils.data.dataloader import DataLoader
 from Scripts.models import CustomModel, STConvModel
 from Scripts.data_proccess import Graph
 from tqdm import tqdm
@@ -71,11 +72,18 @@ class Learn():
         best_val_loss = np.inf
         val_model = self.model
         epoch_no_improvement = self.EarlyStoppingPatience
+        dataloader = DataLoader(self.train_dataset,batch_size = 1,shuffle=False,num_workers=0)
+        edge_index = self.train_dataset.get_edge_index()
+        edge_weight = self.train_dataset.get_edge_weight()
         for epoch in tqdm(range(self.nb_epoch)):
             loss = 0
-            for time, snapshot in enumerate(self.train_dataset):
-                y_hat = self.model(snapshot.x, snapshot.edge_index, snapshot.edge_attr)
-                loss += self.criterion(y_hat,snapshot.y)
+            iter = 0
+            for time, (x,y) in enumerate(dataloader):
+                X = x[0]
+                Y = y[0]
+                y_hat = self.model(X, edge_index, edge_weight)
+                loss += self.criterion(y_hat,Y)
+                iter +=1
 
             # Validation Step at epoch end
             val_loss = self.__val(epoch)
@@ -89,7 +97,7 @@ class Learn():
             if epoch_no_improvement == 0:
                 print("Early stopping at epoch: {0}".format(epoch))
                 break
-            loss = loss / (time+1)
+            loss = loss / (iter+1)
             self.scheduler.step(loss)
             loss.backward()
             self.optimizer.step()
@@ -100,10 +108,17 @@ class Learn():
     def __val(self,epoch):
         self.model.eval()
         loss = 0
-        for time, snapshot in enumerate(self.validation_dataset):
-            y_hat = self.model(snapshot.x, snapshot.edge_index, snapshot.edge_attr)
-            loss += self.criterion(y_hat,snapshot.y)
-        loss = loss / (time+1)
+        dataloader = DataLoader(self.validation_dataset,batch_size = 1,shuffle=False,num_workers=0)
+        edge_index = self.train_dataset.get_edge_index()
+        edge_weight = self.train_dataset.get_edge_weight()
+        iter = 0
+        for time, (x,y) in enumerate(dataloader):
+            X = x[0]
+            Y = y[0]
+            y_hat = self.model(X, edge_index, edge_weight)
+            loss += self.criterion(y_hat,Y)
+            iter +=1
+        loss = loss / (iter+1)
         loss = loss.item()
 
         with tune.checkpoint_dir(step=epoch) as checkpoint_dir:
@@ -118,10 +133,18 @@ class Learn():
     def __test(self,best_model):
         best_model.eval()
         loss = 0
-        for time, snapshot in enumerate(self.test_dataset):
-            y_hat = best_model(snapshot.x, snapshot.edge_index, snapshot.edge_attr)
-            loss += self.criterion(y_hat,snapshot.y)
-        loss = loss / (time+1)
+        dataloader = DataLoader(self.test_dataset,batch_size = 1,shuffle=False,num_workers=0)
+        edge_index = self.train_dataset.get_edge_index()
+        edge_weight = self.train_dataset.get_edge_weight()
+        iter = 0
+        for time, (x,y) in enumerate(dataloader):
+            X = x[0]
+            Y = y[0]
+            y_hat = self.model(X, edge_index, edge_weight)
+            loss += self.criterion(y_hat,Y)
+            iter +=1
+
+        loss = loss / (iter+1)
         loss = loss.item()
         print("Best trial test set loss: {}".format(loss))
 
@@ -130,6 +153,7 @@ class Learn():
         self.__test(best_model)
 
     def __set_for_data(self):
+        device = "cpu"
         self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(
                                                                                             path_proccessed_data=self.proccessed_data_path,
                                                                                             train_ratio = self.train_ratio, 
@@ -140,21 +164,25 @@ class Learn():
                                                                                             epsilon=self.epsilon,
                                                                                             lamda=self.lamda,
                                                                                             nodes_size=self.nodes_size,
-                                                                                            datareader= self.datareader)
+                                                                                            datareader= self.datareader,
+                                                                                            device= device)
 
         self.train_dataset, self.validation_dataset, self.test_dataset = CustomDataset.get_dataset_Custom(
                                                                                             path_proccessed_data=self.proccessed_data_path,
                                                                                             train_ratio = self.train_ratio, 
                                                                                             test_ratio = self.test_ratio, 
                                                                                             val_ratio = self.val_ratio, 
-                                                                                            batch_size=self.batch_size,
                                                                                             epsilon=self.epsilon,
                                                                                             lamda=self.lamda,
                                                                                             nodes_size=self.nodes_size,
-                                                                                            datareader= self.datareader)
+                                                                                            datareader= self.datareader,
+                                                                                            device= device)
 
 
     def __set_for_train(self):
+        device = "cpu"
+        # if torch.cuda.is_available():
+        #     device = "cuda:0"
         if self.model_type == ModelType.STCONV:
             self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(
                                                                                             path_proccessed_data=self.proccessed_data_path,
@@ -166,7 +194,8 @@ class Learn():
                                                                                             epsilon=self.epsilon,
                                                                                             lamda=self.lamda,
                                                                                             nodes_size=self.nodes_size,
-                                                                                            datareader= self.datareader)
+                                                                                            datareader= self.datareader,
+                                                                                            device= device)
             
             self.model = STConvModel(node_features = self.num_features,
                                 num_nodes = Graph.get_number_nodes_by_size(self.nodes_size),
@@ -179,19 +208,15 @@ class Learn():
                                                                                             train_ratio = self.train_ratio, 
                                                                                             test_ratio = self.test_ratio, 
                                                                                             val_ratio = self.val_ratio, 
-                                                                                            batch_size=self.batch_size,
                                                                                             epsilon=self.epsilon,
                                                                                             lamda=self.lamda,
                                                                                             nodes_size=self.nodes_size,
-                                                                                            datareader= self.datareader)
+                                                                                            datareader= self.datareader,
+                                                                                            device= device)
             self.model = CustomModel(node_features = self.num_features, K = 3)
 
-            
-        device = "cpu"
-        if torch.cuda.is_available():
-            device = "cuda:0"
-            if torch.cuda.device_count() > 1:
-                self.model = nn.DataParallel(self.model)
+        # if torch.cuda.is_available() and torch.cuda.device_count():
+        #     self.model = nn.DataParallel(self.model)
         self.model.to(device)
 
         if self.optimizer_type == OptimiserType.Adam:
@@ -217,5 +242,7 @@ class Learn():
 
     def start(config, info, param):
         learn = Learn(param,info,config)
+        torch.backends.cudnn.benchmark = True
+        torch.cuda.empty_cache()
         learn.__set_for_train()
         learn.__train_val_and_test()

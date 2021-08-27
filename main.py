@@ -12,8 +12,8 @@ if __name__ == '__main__':
     datareader = DataReader(path_data,graph_info_txt)
     
     config = {
-        "batch_size": tune.choice([8,16,32]),
-        "hidden_channels": tune.choice([8,16,32,64]),
+        "batch_size": tune.choice([8]),
+        "hidden_channels": tune.choice([8]),
         "K" : tune.choice([1,3,5,7]),
         "epsilon" : tune.choice([0.1, 0.3, 0.5, 0.7]),
         "optimizer_type" : tune.choice([OptimiserType.Adam,OptimiserType.AdamW,OptimiserType.Adamax,OptimiserType.RMSprop]),
@@ -68,24 +68,24 @@ if __name__ == '__main__':
         print("Best trial config: {}".format(best_trial.config))
         print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))
         
-        info = {
-            "criterion": LossFunction.MAE,
-            "model_type" : ModelType.STCONV
-        }
+        # info = {
+        #     "criterion": LossFunction.MAE,
+        #     "model_type" : ModelType.STCONV
+        # }
 
-        config["hidden_channels"] = tune.choice([8,16,32,64])
-        Learn.start(config,info,param)
+        # config["hidden_channels"] = tune.choice([8,16,32,64])
+        # Learn.start(config,info,param)
 
-        result = tune.run(
-            tune.with_parameters(Learn.start, info = info, param = param),
-            resources_per_trial={"cpu": 8, "gpu": 1},
-            config=config,
-            metric="loss",
-            mode="min",
-            num_samples=num_samples,
-            scheduler=scheduler
-        )
+        # result = tune.run(
+        #     tune.with_parameters(Learn.start, info = info, param = param),
+        #     resources_per_trial={"cpu": 8, "gpu": 1},
+        #     config=config,
+        #     metric="loss",
+        #     mode="min",
+        #     num_samples=num_samples,
+        #     scheduler=scheduler
+        # )
 
-        best_trial = result.get_best_trial("loss", "min", "last")
-        print("Best trial config: {}".format(best_trial.config))
-        print("Best trial STCONV model final validation loss: {}".format(best_trial.last_result["loss"]))
+        # best_trial = result.get_best_trial("loss", "min", "last")
+        # print("Best trial config: {}".format(best_trial.config))
+        # print("Best trial STCONV model final validation loss: {}".format(best_trial.last_result["loss"]))

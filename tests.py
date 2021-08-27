@@ -3,7 +3,7 @@ from Scripts.data_proccess import DataReader, DatasetSize, Graph
 from Scripts.learn import Learn, LossFunction,  ModelType, OptimiserType
 
 if __name__ == '__main__':
-
+    
     path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
     path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
@@ -11,7 +11,7 @@ if __name__ == '__main__':
     
 
     config_partial = {
-        "batch_size": 16,
+        "batch_size": 32,
         "hidden_channels": 64,
         "K" : 1,
         "epsilon" : 0.5,
@@ -27,7 +27,7 @@ if __name__ == '__main__':
             "graph_info_txt" : graph_info_txt,
             "nb_epoch" : 200,
             "datareader" : datareader,
-            "nodes_size" : DatasetSize.Experimental,
+            "nodes_size" : DatasetSize.Medium,
             "train_ratio" : 0.6,
             "val_ratio" : 0.2,
             "test_ratio" : 0.2,
