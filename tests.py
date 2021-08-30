@@ -1,4 +1,4 @@
-from Scripts.datasetsClasses import CustomDataset, STConvDataset
+from Scripts.datasetsClasses import CustomDataset, LinearRegressionDataset, STConvDataset
 from Scripts.data_proccess import DataReader, DatasetSize, Graph
 from Scripts.learn import Learn, LossFunction,  ModelType, OptimiserType
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         "model_type" : ModelType.Custom
     }
 
-    if Graph.need_load(path_processed_data) or STConvDataset.need_load(path_processed_data) or CustomDataset.need_load(path_processed_data):
+    if Graph.need_load(path_processed_data) or STConvDataset.need_load(path_processed_data) or CustomDataset.need_load(path_processed_data) or LinearRegressionDataset.need_load(path_processed_data):
         datareader.start()
         Learn.set_data(config_partial,info,param)
         

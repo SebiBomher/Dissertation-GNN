@@ -3,7 +3,9 @@ from torch import nn
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
 from Scripts.models import CustomModel, STConvModel
-from Scripts.data_proccess import Graph
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import GridSearchCV
+from Scripts.data_proccess import DatasetSizeNumber, Graph
 from tqdm import tqdm
 import numpy as np
 import copy
@@ -11,16 +13,16 @@ import torch
 import os
 from torch.optim import Adam,RMSprop,Adamax,AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from Scripts.datasetsClasses import CustomDataset, STConvDataset
+from Scripts.datasetsClasses import CustomDataset, LinearRegressionDataset, STConvDataset
 from enum import Enum
-
+import pickle
 class ModelType(Enum):
     r"""
     
     """
-    STCONV = 0
-    Custom = 3
-    LinearRegression = 4
+    Custom = 0
+    STCONV = 1
+    LinearRegression = 2
 
 class OptimiserType(Enum):
     r"""
@@ -58,6 +60,7 @@ class Learn():
         self.test_ratio = param["test_ratio"]
         self.val_ratio = param["val_ratio"]
         self.checkpoint_dir = param["checkpoint_dir"]
+        self.checkpoint_LR = param["checkpoint_LR"]
         self.learning_rate = param["learning_rate"]
         self.EarlyStoppingPatience = param["EarlyStoppingPatience"]
         self.nb_epoch = param["nb_epoch"]
@@ -148,9 +151,35 @@ class Learn():
         loss = loss.item()
         print("Best trial test set loss: {}".format(loss))
 
+    def __LRTrainAndTest(self):
+        parameters = {'normalize':[True,False]}
+        lr_model = LinearRegression()
+        clf = GridSearchCV(lr_model, parameters, refit=True, cv=5)
+        all_loss = 0
+        for X_train, X_test, Y_train, Y_test, node_id in enumerate(self.train_dataset):
+            best_model = clf.fit(X_train,Y_train)
+            y_pred = best_model.predict(X_test)
+            loss = self.criterion(torch.FloatTensor(Y_test).to(self.train_dataset.device),torch.FloatTensor(y_pred).to(self.train_dataset.device))
+            all_loss += loss
+            loss = loss.item()
+            print("Best trial test set loss: {0} for node id : {1}".format(loss,node_id))
+            if not os.path.exists(self.checkpoint_LR):
+                os.makedirs(self.checkpoint_LR)
+            name_model = os.path.join(self.checkpoint_LR,"model_node_{0}_{1}_{2}.pickle".format(node_id,self.criterion.__name__,loss))
+            with open(name_model, 'wb') as handle:
+                pickle.dump(best_model, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        all_loss /= (DatasetSizeNumber.Medium)
+        all_loss = all_loss.item()
+        return best_model
+
+
     def __train_val_and_test(self):
-        best_model = self.__train()
-        self.__test(best_model)
+        if self.model_type != ModelType.LinearRegression:
+            best_model = self.__train()
+            self.__test(best_model)
+        else:
+            self.__LRTrainAndTest()
 
     def __set_for_data(self):
         device = "cpu"
@@ -177,6 +206,7 @@ class Learn():
                                                                                             nodes_size=self.nodes_size,
                                                                                             datareader= self.datareader,
                                                                                             device= device)
+        self.train_dataset, self.validation_dataset, self.test_dataset = LinearRegressionDataset.get_dataset_LR()
 
 
     def __set_for_train(self):
