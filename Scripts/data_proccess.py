@@ -36,7 +36,6 @@ class DatasetSize(Enum):
     Experimental = 0
     Small = 1
     Medium = 2
-    # Full = 3
 
 class DataReader():
     r"""
@@ -395,9 +394,7 @@ class Graph():
             Returns the number of nodes by size
             Returns Integer
         """
-        if size == DatasetSize.Full:
-            return DatasetSizeNumber.Full.value
-        elif size == DatasetSize.Medium:
+        if size == DatasetSize.Medium:
             return DatasetSizeNumber.Medium.value
         elif size == DatasetSize.Small:
             return DatasetSizeNumber.Small.value

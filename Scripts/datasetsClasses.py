@@ -104,7 +104,7 @@ class LinearRegressionDataset():
 
 
     def need_load(proccessed_data_path):
-        return not os.path.exists(name_folder = os.path.join(os.path.join(proccessed_data_path,"LinearRegression"),'Data'))
+        return not os.path.exists(os.path.join(os.path.join(proccessed_data_path,"LinearRegression"),'Data'))
 
     def __getitem__(self, time_index: int):
         name_x = os.path.join(self.proccessed_data_path_model,"Data",'X_{0}*.npy'.format(str(time_index))) 
