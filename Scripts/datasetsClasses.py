@@ -61,7 +61,7 @@ class LinearRegressionDataset():
     def __init__(self,
                 proccessed_data_path : str,
                 datareader : DataReader,
-                device : str = 'cpu',):
+                device : str = 'cpu'):
         self.proccessed_data_path = proccessed_data_path
         self.proccessed_data_path_model = os.path.join(self.proccessed_data_path,"LinearRegression")
         self.datareader = datareader
@@ -127,10 +127,6 @@ class LinearRegressionDataset():
     def __iter__(self):
         self.t = 0
         return self
-
-    def get_dataset_LR():
-        # TODO GetDataset
-        return
 
 class CustomDataset(DatasetClass):
     

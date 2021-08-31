@@ -34,10 +34,20 @@ if __name__ == '__main__':
             "checkpoint_dir" : None
         }
 
+    config_partial = {
+        "batch_size": 32,
+        "hidden_channels": 64,
+        "K" : 1,
+        "epsilon" : 0.5,
+        "optimizer_type" : OptimiserType.Adam,
+        "lamda" : 5
+    }
     info = {
         "criterion": LossFunction.MAE,
-        "model_type" : ModelType.Custom
+        "model_type" : ModelType.LinearRegression
     }
+
+    Learn.start(config_partial,info,param)
     nb_epoch = 200
     for datasize in DatasetSize:
 
@@ -67,25 +77,3 @@ if __name__ == '__main__':
         best_trial = result.get_best_trial("loss", "min", "last")
         print("Best trial config: {}".format(best_trial.config))
         print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))
-        
-        # info = {
-        #     "criterion": LossFunction.MAE,
-        #     "model_type" : ModelType.STCONV
-        # }
-
-        # config["hidden_channels"] = tune.choice([8,16,32,64])
-        # Learn.start(config,info,param)
-
-        # result = tune.run(
-        #     tune.with_parameters(Learn.start, info = info, param = param),
-        #     resources_per_trial={"cpu": 8, "gpu": 1},
-        #     config=config,
-        #     metric="loss",
-        #     mode="min",
-        #     num_samples=num_samples,
-        #     scheduler=scheduler
-        # )
-
-        # best_trial = result.get_best_trial("loss", "min", "last")
-        # print("Best trial config: {}".format(best_trial.config))
-        # print("Best trial STCONV model final validation loss: {}".format(best_trial.last_result["loss"]))

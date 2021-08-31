@@ -152,7 +152,11 @@ class Learn():
         print("Best trial test set loss: {}".format(loss))
 
     def __LRTrainAndTest(self):
-        parameters = {'normalize':[True,False]}
+        
+        parameters = {
+            'normalize':[True,False],
+        }
+
         lr_model = LinearRegression()
         clf = GridSearchCV(lr_model, parameters, refit=True, cv=5)
         all_loss = 0
@@ -171,15 +175,16 @@ class Learn():
 
         all_loss /= (DatasetSizeNumber.Medium)
         all_loss = all_loss.item()
-        return best_model
-
+        name_file = os.path.join(self.checkpoint_LR,"final_score.txt")
+        with open(name_file, 'wb') as f:
+            f.write(all_loss)
 
     def __train_val_and_test(self):
-        if self.model_type != ModelType.LinearRegression:
+        if self.model_type == ModelType.LinearRegression:
+            self.__LRTrainAndTest()
+        else:
             best_model = self.__train()
             self.__test(best_model)
-        else:
-            self.__LRTrainAndTest()
 
     def __set_for_data(self):
         device = "cpu"
@@ -206,13 +211,10 @@ class Learn():
                                                                                             nodes_size=self.nodes_size,
                                                                                             datareader= self.datareader,
                                                                                             device= device)
-        self.train_dataset, self.validation_dataset, self.test_dataset = LinearRegressionDataset.get_dataset_LR()
-
+        self.train_dataset = LinearRegressionDataset(self.proccessed_data_path,self.datareader,device)
 
     def __set_for_train(self):
         device = "cpu"
-        # if torch.cuda.is_available():
-        #     device = "cuda:0"
         if self.model_type == ModelType.STCONV:
             self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(
                                                                                             path_proccessed_data=self.proccessed_data_path,
@@ -245,8 +247,11 @@ class Learn():
                                                                                             device= device)
             self.model = CustomModel(node_features = self.num_features, K = 3)
 
-        # if torch.cuda.is_available() and torch.cuda.device_count():
-        #     self.model = nn.DataParallel(self.model)
+        elif self.model_type == ModelType.LinearRegression:
+            self.train_dataset = LinearRegressionDataset(self.proccessed_data_path,self.datareader,device)
+
+        if self.model_type == ModelType.LinearRegression : return
+
         self.model.to(device)
 
         if self.optimizer_type == OptimiserType.Adam:

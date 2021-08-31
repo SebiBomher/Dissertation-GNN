@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     info = {
         "criterion": LossFunction.MAE,
-        "model_type" : ModelType.Custom
+        "model_type" : ModelType.LinearRegression
     }
 
     if Graph.need_load(path_processed_data) or STConvDataset.need_load(path_processed_data) or CustomDataset.need_load(path_processed_data) or LinearRegressionDataset.need_load(path_processed_data):
