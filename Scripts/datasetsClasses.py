@@ -81,8 +81,8 @@ class LinearRegressionDataset():
     def __save_dataset(self):
         X,Y = self.datareader.get_clean_data_by_nodes(DatasetSize.Medium,self.proccessed_data_path)
 
-        X = self.__arrange_data(X,DatasetSizeNumber.Medium)
-        Y = self.__arrange_data(Y,DatasetSizeNumber.Medium) 
+        X = self.__arrange_data(X,DatasetSizeNumber.Medium.value)
+        Y = self.__arrange_data(Y,DatasetSizeNumber.Medium.value) 
         
         nodes_ids = Graph.get_nodes_ids_by_size(self.proccessed_data_path,DatasetSize.Medium)
         if not os.path.exists(self.proccessed_data_path_model):
@@ -93,11 +93,11 @@ class LinearRegressionDataset():
             os.makedirs(name_folder)
 
         for index,data in enumerate(zip(X,nodes_ids)):
-            name_x = os.path.join(name_folder,'X_{0}_{1}.npy'.format(str(index,data[1])))
+            name_x = os.path.join(name_folder,'X_{0}_{1}.npy'.format(str(index),str(data[1])))
             np.save(name_x, data[0])
 
         for index,data in enumerate(zip(Y,nodes_ids)):
-            name_y = os.path.join(name_folder,'Y_{0}_{1}.npy'.format(str(index,data[1])))
+            name_y = os.path.join(name_folder,'Y_{0}_{1}.npy'.format(str(index),str(data[1])))
             np.save(name_y, data[0])
 
         return
@@ -108,15 +108,18 @@ class LinearRegressionDataset():
 
     def __getitem__(self, time_index: int):
         name_x = os.path.join(self.proccessed_data_path_model,"Data",'X_{0}*.npy'.format(str(time_index))) 
-        name_y = os.path.join(self.proccessed_data_path_model,"Data",'Y_{0}*.npy'.format(str(time_index))) 
-        X = np.load(name_x)
-        Y = np.load(name_y)
+        name_y = os.path.join(self.proccessed_data_path_model,"Data",'Y_{0}*.npy'.format(str(time_index)))
+        for filename in glob.glob(name_x):
+            X = np.load(filename)
+        for filename in glob.glob(name_y):
+            Y = np.load(filename)
+            
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2,shuffle = False)
         node_id = name_x[-6:]
         return  X_train, X_test, Y_train, Y_test, node_id
 
     def __next__(self):
-        if self.t < DatasetSizeNumber.Medium:
+        if self.t < DatasetSizeNumber.Medium.value:
             snapshot = self.__getitem__(self.t)
             self.t = self.t + 1
             return snapshot
