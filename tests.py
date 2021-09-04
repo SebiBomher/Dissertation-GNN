@@ -6,7 +6,7 @@ if __name__ == '__main__':
     
     path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
     path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
-    checkpoint_LR = "D:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
+    checkpoint_LR = "E:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
     datareader = DataReader(path_data,graph_info_txt)
     
@@ -32,7 +32,7 @@ if __name__ == '__main__':
             "train_ratio" : 0.6,
             "val_ratio" : 0.2,
             "test_ratio" : 0.2,
-            "checkpoint_LR" : checkpoint_LR,
+            "checkpoint_LR" : "E:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR",
             "checkpoint_dir" : None
         }
 
