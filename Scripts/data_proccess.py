@@ -170,7 +170,7 @@ class DataReader():
                         Y.append((float)(line[11]))
                         X.append([(float)(line[9]),(float)(line[10])])
             nb_days += 1
-        self.X = np.transpose([normalize(row) for row in np.transpose(X)])
+        self.X = normalize(np.array(X))
         self.Y = Y
         self.nb_days = nb_days
 
