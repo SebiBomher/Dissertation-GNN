@@ -6,9 +6,7 @@ from typing import Union
 from geopy.distance import geodesic
 from glob import glob
 from enum import Enum
-
-from torch_geometric.data.data import Data
-
+from sklearn.preprocessing import normalize
 class DatasetSizeNumber(Enum):
     r"""
         Number of DatasetSizes, the total number of nodes per each dataset type.
@@ -150,7 +148,6 @@ class DataReader():
                 nodes_index = 0
         return new_X,new_Y
 
-
     def __read_data(self) -> None :
         r"""
             Instance function.
@@ -173,7 +170,7 @@ class DataReader():
                         Y.append((float)(line[11]))
                         X.append([(float)(line[9]),(float)(line[10])])
             nb_days += 1
-        self.X = X
+        self.X = np.transpose([normalize(row) for row in np.transpose(X)])
         self.Y = Y
         self.nb_days = nb_days
 

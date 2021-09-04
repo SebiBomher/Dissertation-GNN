@@ -79,6 +79,7 @@ class LinearRegressionDataset():
 
         
     def __save_dataset(self):
+        if not LinearRegressionDataset.need_load(self.proccessed_data_path) : return
         X,Y = self.datareader.get_clean_data_by_nodes(DatasetSize.Medium,self.proccessed_data_path)
 
         X = self.__arrange_data(X,DatasetSizeNumber.Medium.value)
@@ -110,12 +111,12 @@ class LinearRegressionDataset():
         name_x = os.path.join(self.proccessed_data_path_model,"Data",'X_{0}*.npy'.format(str(time_index))) 
         name_y = os.path.join(self.proccessed_data_path_model,"Data",'Y_{0}*.npy'.format(str(time_index)))
         for filename in glob.glob(name_x):
+            node_id = filename[-10:-4]
             X = np.load(filename)
         for filename in glob.glob(name_y):
             Y = np.load(filename)
             
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2,shuffle = False)
-        node_id = name_x[-6:]
         return  X_train, X_test, Y_train, Y_test, node_id
 
     def __next__(self):

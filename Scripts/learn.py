@@ -154,13 +154,13 @@ class Learn():
     def __LRTrainAndTest(self):
         
         parameters = {
-            'normalize':[True,False],
+            'normalize':[True],
         }
 
         lr_model = LinearRegression()
         clf = GridSearchCV(lr_model, parameters, refit=True, cv=5)
         all_loss = 0
-        for X_train, X_test, Y_train, Y_test, node_id in enumerate(self.train_dataset):
+        for index, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(self.train_dataset):
             best_model = clf.fit(X_train,Y_train)
             y_pred = best_model.predict(X_test)
             loss = self.criterion(torch.FloatTensor(Y_test).to(self.train_dataset.device),torch.FloatTensor(y_pred).to(self.train_dataset.device))
