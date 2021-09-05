@@ -275,7 +275,14 @@ class Learn():
         learn = Learn(param,info,config)
         learn.__set_for_data()
 
-    def start(config, info, param):
+    def startCUSTOM(config, info, param):
+        learn = Learn(param,info,config)
+        torch.backends.cudnn.benchmark = True
+        torch.cuda.empty_cache()
+        learn.__set_for_train()
+        learn.__train_val_and_test()
+
+    def startSTCONV(config, info, param):
         learn = Learn(param,info,config)
         torch.backends.cudnn.benchmark = True
         torch.cuda.empty_cache()
