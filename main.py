@@ -1,13 +1,13 @@
 from Scripts.data_proccess import DataReader, DatasetSize
-import ray
 from Scripts.learn import Learn, LossFunction, ModelType, OptimiserType
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 
 if __name__ == '__main__':
-    num_samples = 32
-    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    num_samples = 16
+    path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
+    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    checkpoint_LR = "E:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
     datareader = DataReader(path_data,graph_info_txt)
     
@@ -19,6 +19,8 @@ if __name__ == '__main__':
         "optimizer_type" : tune.choice([OptimiserType.Adam,OptimiserType.AdamW,OptimiserType.Adamax,OptimiserType.RMSprop]),
         "lamda" : tune.choice([1, 3, 5, 10])
         }
+    
+    nb_epoch = 300
     param = {
             "learning_rate" : 0.01,
             "num_features" : 2,
@@ -26,11 +28,13 @@ if __name__ == '__main__':
             "path_data" : path_data,
             "proccessed_data_path" : path_processed_data,
             "graph_info_txt" : graph_info_txt,
-            "nb_epoch" : 200,
+            "nb_epoch" : nb_epoch,
             "datareader" : datareader,
+            "nodes_size" : DatasetSize.Medium,
             "train_ratio" : 0.6,
             "val_ratio" : 0.2,
             "test_ratio" : 0.2,
+            "checkpoint_LR" : checkpoint_LR,
             "checkpoint_dir" : None
         }
 
@@ -47,59 +51,59 @@ if __name__ == '__main__':
         "model_type" : ModelType.LinearRegression
     }
 
-    Learn.start(config_partial,info,param)
-    nb_epoch = 200
-    for datasize in DatasetSize:
+    #Learn.startCUSTOM(config_partial,info,param)
+    
+    # for datasize in DatasetSize:
 
-        param["nodes_size"] = datasize
+    param["nodes_size"] = DatasetSize.Medium
 
-        scheduler = ASHAScheduler(
-            max_t=nb_epoch,
-            grace_period=20,
-            reduction_factor=3)
+    scheduler = ASHAScheduler(
+        max_t=nb_epoch,
+        grace_period=100,
+        reduction_factor=3)
 
-        info = {
-            "criterion": LossFunction.MAE,
-            "model_type" : ModelType.Custom
-        }
+    info = {
+        "criterion": LossFunction.MAE,
+        "model_type" : ModelType.Custom
+    }
 
-        config["hidden_channels"] = tune.choice([0])
-        result = tune.run(
-            tune.with_parameters(Learn.startCUSTOM, info = info, param = param),
-            resources_per_trial={"cpu": 8, "gpu": 1},
-            config=config,
-            metric="loss",
-            mode="min",
-            num_samples=num_samples,
-            scheduler=scheduler
-        )
+    config["hidden_channels"] = tune.choice([0])
+    result = tune.run(
+        tune.with_parameters(Learn.startCUSTOM, info = info, param = param),
+        resources_per_trial={"cpu": 8, "gpu": 1},
+        config=config,
+        metric="loss",
+        mode="min",
+        num_samples=num_samples,
+        scheduler=scheduler
+    )
 
-        best_trial = result.get_best_trial("loss", "min", "last")
-        print("Best trial config: {}".format(best_trial.config))
-        print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))
+    best_trial = result.get_best_trial("loss", "min", "last")
+    print("Best trial config: {}".format(best_trial.config))
+    print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))
 
 
-        scheduler = ASHAScheduler(
-            max_t=nb_epoch,
-            grace_period=20,
-            reduction_factor=3)
+    # scheduler = ASHAScheduler(
+    #     max_t=nb_epoch,
+    #     grace_period=100,
+    #     reduction_factor=3)
 
-        info = {
-            "criterion": LossFunction.MAE,
-            "model_type" : ModelType.STCONV
-        }
+    # info = {
+    #     "criterion": LossFunction.MAE,
+    #     "model_type" : ModelType.STCONV
+    # }
 
-        config["hidden_channels"] = tune.choice([8])
-        result = tune.run(
-            tune.with_parameters(Learn.startSTCONV, info = info, param = param),
-            resources_per_trial={"cpu": 8, "gpu": 1},
-            config=config,
-            metric="loss",
-            mode="min",
-            num_samples=num_samples,
-            scheduler=scheduler
-        )
+    # config["hidden_channels"] = tune.choice([8])
+    # result = tune.run(
+    #     tune.with_parameters(Learn.startSTCONV, info = info, param = param),
+    #     resources_per_trial={"cpu": 8, "gpu": 1},
+    #     config=config,
+    #     metric="loss",
+    #     mode="min",
+    #     num_samples=num_samples,
+    #     scheduler=scheduler
+    # )
 
-        best_trial = result.get_best_trial("loss", "min", "last")
-        print("Best trial config: {}".format(best_trial.config))
-        print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))
+    # best_trial = result.get_best_trial("loss", "min", "last")
+    # print("Best trial config: {}".format(best_trial.config))
+    # print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))

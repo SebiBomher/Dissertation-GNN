@@ -173,11 +173,14 @@ class Learn():
             with open(name_model, 'wb') as handle:
                 pickle.dump(best_model, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        all_loss /= (DatasetSizeNumber.Medium)
         all_loss = all_loss.item()
+        print(all_loss)
+        all_loss = all_loss/(DatasetSizeNumber.Medium.value)
+        print(all_loss)
         name_file = os.path.join(self.checkpoint_LR,"final_score.txt")
-        with open(name_file, 'wb') as f:
-            f.write(all_loss)
+        print("Linear Regression {0} : {1}".format(self.criterion.__name__,all_loss))
+        with open(name_file, 'w') as f:
+            f.write(str(all_loss))
 
     def __train_val_and_test(self):
         if self.model_type == ModelType.LinearRegression:
@@ -274,7 +277,7 @@ class Learn():
     def set_data(config,info,param):
         learn = Learn(param,info,config)
         learn.__set_for_data()
-
+        
     def startCUSTOM(config, info, param):
         learn = Learn(param,info,config)
         torch.backends.cudnn.benchmark = True

@@ -18,8 +18,8 @@ class STConvModel(Module):
         x = self.ReLU(x)
         x = self.STCONV(x, edge_index, edge_weight)
         x = self.ReLU(x)
-        x = self.STCONV(x, edge_index, edge_weight)
-        x = self.ReLU(x)
+        # x = self.STCONV(x, edge_index, edge_weight)
+        # x = self.ReLU(x)
         x = self.linear(x)
         return x
 

@@ -458,16 +458,9 @@ class STConvDataset(DatasetClass):
                 return torch.FloatTensor(Y).to(self.device)
 
     def __getitem__(self, time_index: int):
-            x = self.__get_features(time_index)
-            edge_index = self.get_edge_index()
-            edge_weight = self.get_edge_weight()
-            y = self.__get_target(time_index)
-
-            snapshot = Data(x = x,
-                            edge_index = edge_index,
-                            edge_attr = edge_weight,
-                            y = y)
-            return snapshot
+        x = self.__get_features(time_index)
+        y = self.__get_target(time_index)
+        return x,y
 
     def __next__(self):
         if self.t < self.time_stop:

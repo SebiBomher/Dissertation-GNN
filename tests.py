@@ -4,8 +4,8 @@ from Scripts.learn import Learn, LossFunction,  ModelType, OptimiserType
 
 if __name__ == '__main__':
     
-    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
+    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
     checkpoint_LR = "E:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
     datareader = DataReader(path_data,graph_info_txt)
@@ -32,17 +32,17 @@ if __name__ == '__main__':
             "train_ratio" : 0.6,
             "val_ratio" : 0.2,
             "test_ratio" : 0.2,
-            "checkpoint_LR" : "E:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR",
+            "checkpoint_LR" : checkpoint_LR,
             "checkpoint_dir" : None
         }
 
     info = {
         "criterion": LossFunction.MAE,
-        "model_type" : ModelType.LinearRegression
+        "model_type" : ModelType.STCONV
     }
 
     if Graph.need_load(path_processed_data) or STConvDataset.need_load(path_processed_data) or CustomDataset.need_load(path_processed_data) or LinearRegressionDataset.need_load(path_processed_data):
         datareader.start()
         Learn.set_data(config_partial,info,param)
         
-    Learn.start(config_partial,info,param)
+    Learn.startSTCONV(config_partial,info,param)
