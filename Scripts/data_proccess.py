@@ -10,14 +10,12 @@ from sklearn.preprocessing import normalize
 class DatasetSizeNumber(Enum):
     r"""
         Number of DatasetSizes, the total number of nodes per each dataset type.
-            Full = 2400
-            Medium = 120
+            Medium = 480
             Small = 120
             Experimental = 5
     """
 
-    Full = 2400
-    Medium = 1200
+    Medium = 480
     Small = 120
     Experimental = 8
 
