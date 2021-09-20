@@ -6,6 +6,7 @@ from typing import Union
 from geopy.distance import geodesic
 from glob import glob
 from enum import Enum
+import pandas as pd
 from sklearn.preprocessing import normalize
 class DatasetSizeNumber(Enum):
     r"""
@@ -33,7 +34,6 @@ class DatasetSize(Enum):
     Experimental = 0
     Small = 1
     Medium = 2
-
 class DataReader():
     r"""
         DataReader Class, Once initialized it will read data once and will be able to access data without re-reading aditional data
@@ -77,10 +77,52 @@ class DataReader():
         self.nodes_location = []
         self.nb_days = 0
 
+    def visualization(self) -> pd.DataFrame:
+        return self.__read_visualization
+
     def start(self):
         self.__get_good_empty_nodes()
         self.__read_data()
         self.__read_nodes_data()
+
+    def __read_visualization(self) -> pd.DataFrame:
+        r"""
+            Instance function.
+            Set data and labes (X and Y) from Data (may contain data from empty nodes).
+            Returns Nothing.
+        """
+        # 40 columns
+        columns = ['Timestamp',
+                    'Station',
+                    'District',
+                    'Freeway',
+                    'DirOfTravel',
+                    'LaneType',
+                    'Length',
+                    'Samples',
+                    'Observed',
+                    'Flow',
+                    'Occupancy',
+                    'Speed']
+        for i in range(1,8):
+            columns.append([str(i) + '_Samples',
+                            str(i) + '_Flow',
+                            str(i) + '_Occupancy',
+                            str(i) + '_Speed',
+                            str(i) + '_Observed'])
+        dataframe = pd.DataFrame(columns=columns)
+        txtFiles = os.path.join(self.__path_raw_data,"*","*.txt")
+        nb_days = 0
+        index = 0
+        for file in glob(txtFiles):
+            with open(file) as f:
+                print("Reading day {0}".format(nb_days + 1))
+                content = f.readlines()
+                for line in content:
+                    line = line.split(',')
+                    line = [line1.replace("\n","") for line1 in line]
+                    dataframe.loc[index] = line
+        return dataframe
 
     def __get_number_of_nodes(self) -> None:
         r"""
