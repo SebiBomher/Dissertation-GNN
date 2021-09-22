@@ -2,7 +2,7 @@ import math
 import os
 import numpy as np
 from random import sample
-from typing import Union
+from typing import Tuple, Union
 from geopy.distance import geodesic
 from glob import glob
 from enum import Enum
@@ -77,22 +77,22 @@ class DataReader():
         self.nodes_location = []
         self.nb_days = 0
 
-    def visualization(self) -> pd.DataFrame:
-        return self.__read_visualization
+    def visualization(self) -> Tuple[pd.DataFrame,pd.DataFrame]:
+        return self.__read_visualization()
 
     def start(self):
         self.__get_good_empty_nodes()
         self.__read_data()
         self.__read_nodes_data()
 
-    def __read_visualization(self) -> pd.DataFrame:
+    def __read_visualization(self) -> Tuple[pd.DataFrame,pd.DataFrame]:
         r"""
             Instance function.
             Set data and labes (X and Y) from Data (may contain data from empty nodes).
             Returns Nothing.
         """
-        # 40 columns
-        columns = ['Timestamp',
+        # 52 columns
+        columnsInfo = ['Timestamp',
                     'Station',
                     'District',
                     'Freeway',
@@ -104,25 +104,47 @@ class DataReader():
                     'Flow',
                     'Occupancy',
                     'Speed']
-        for i in range(1,8):
-            columns.append([str(i) + '_Samples',
+        for i in range(1,9):
+            columnsInfo.extend([str(i) + '_Samples',
                             str(i) + '_Flow',
                             str(i) + '_Occupancy',
                             str(i) + '_Speed',
                             str(i) + '_Observed'])
-        dataframe = pd.DataFrame(columns=columns)
+        columnsMetadata = ['ID',
+                            'Fwy',
+                            'Dir',
+                            'District',
+                            'County',
+                            'City',
+                            'State_PM',
+                            'Abs_PM',
+                            'Latitude',
+                            'Longitude',
+                            'Length',
+                            'Type',
+                            'Lanes',
+                            'Name',
+                            'User_ID_1',
+                            'User_ID_2',
+                            'User_ID_3',
+                            'User_ID_4']
         txtFiles = os.path.join(self.__path_raw_data,"*","*.txt")
+        info_data =  os.path.join(self.__path_raw_data,self.__graph_info_txt)
+        print("Reading Metadata")
+        dataframeMetadata = pd.read_csv(info_data,sep = '\t', skiprows=1, header=None, names = columnsMetadata)
+        print("Finished reading Metadata")
+        print("Reading Information")
         nb_days = 0
-        index = 0
+        dataframeInfo = pd.DataFrame(columns = columnsInfo)
         for file in glob(txtFiles):
+            print("Reading day {0}".format(nb_days + 1))
             with open(file) as f:
-                print("Reading day {0}".format(nb_days + 1))
-                content = f.readlines()
-                for line in content:
-                    line = line.split(',')
-                    line = [line1.replace("\n","") for line1 in line]
-                    dataframe.loc[index] = line
-        return dataframe
+                dataframeInfo=dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo),ignore_index=True)
+                nb_days += 1
+            if nb_days == 5:
+                break
+        print("Finished Reading Information")
+        return dataframeInfo,dataframeMetadata
 
     def __get_number_of_nodes(self) -> None:
         r"""
