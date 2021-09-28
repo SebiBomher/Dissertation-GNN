@@ -1,3 +1,4 @@
+import math
 import os
 import torch
 import numpy as np
@@ -57,6 +58,7 @@ class DatasetClass(object):
         else:
             return torch.FloatTensor(self.graph.edge_weight).to(self.device)
 
+
 class LinearRegressionDataset():
     def __init__(self,
                 proccessed_data_path : str,
@@ -107,6 +109,7 @@ class LinearRegressionDataset():
     def need_load(proccessed_data_path):
         return not os.path.exists(os.path.join(os.path.join(proccessed_data_path,"LinearRegression"),'Data'))
 
+
     def __getitem__(self, time_index: int):
         name_x = os.path.join(self.proccessed_data_path_model,"Data",'X_{0}*.npy'.format(str(time_index))) 
         name_y = os.path.join(self.proccessed_data_path_model,"Data",'Y_{0}*.npy'.format(str(time_index)))
@@ -132,6 +135,18 @@ class LinearRegressionDataset():
         self.t = 0
         return self
 
+    def get_for_node(self, node : int):
+        assert node % math.pow(10,6) >= 1
+        name_x = os.path.join(self.proccessed_data_path_model,"Data",'X_*_{0}.npy'.format(str(node))) 
+        name_y = os.path.join(self.proccessed_data_path_model,"Data",'Y_*_{0}.npy'.format(str(node)))
+        for filename in glob.glob(name_x):
+            X = np.load(filename)
+        for filename in glob.glob(name_y):
+            Y = np.load(filename)
+        _, X_test, _, Y_test = train_test_split(X, Y, test_size=0.2,shuffle = False)
+        return  X_test, Y_test
+
+        # -=0oklo
 class CustomDataset(DatasetClass):
     
     def __init__(self,
@@ -285,6 +300,7 @@ class CustomDataset(DatasetClass):
     
     def __len__(self):
         return self.snapshot_count
+
 
 class STConvDataset(DatasetClass):
     

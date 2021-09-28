@@ -1,3 +1,4 @@
+import glob
 from ray import tune
 from torch import nn
 from torch.functional import Tensor
@@ -34,6 +35,9 @@ class OptimiserType(Enum):
     AdamW = 3
 class LossFunction():
     
+    def Criterions():
+        return [LossFunction.RMSE,LossFunction.MAPE,LossFunction.MAE,LossFunction.MSE]
+
     def RMSE(y_pred,y_true) -> Tensor:
         return torch.sqrt(torch.mean((y_pred-y_true)**2))
         
@@ -61,6 +65,7 @@ class Learn():
         self.val_ratio = param["val_ratio"]
         self.checkpoint_dir = param["checkpoint_dir"]
         self.checkpoint_LR = param["checkpoint_LR"]
+        self.results_folder = param["results_folder"]
         self.learning_rate = param["learning_rate"]
         self.EarlyStoppingPatience = param["EarlyStoppingPatience"]
         self.nb_epoch = param["nb_epoch"]
@@ -181,6 +186,8 @@ class Learn():
         print("Linear Regression {0} : {1}".format(self.criterion.__name__,all_loss))
         with open(name_file, 'w') as f:
             f.write(str(all_loss))
+
+    
 
     def __train_val_and_test(self):
         if self.model_type == ModelType.LinearRegression:
