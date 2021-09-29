@@ -77,6 +77,12 @@ class DataReader():
         self.nodes_location = []
         self.nb_days = 0
 
+    def results(self, results_path)-> Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]:
+        dfLR = pd.read_csv(os.path.join(results_path,"LinearRegression.csv"), header=False)
+        dfSTCONV = pd.read_csv(os.path.join(results_path,"STCONV.csv"), header=False)
+        dfCUSTOM = pd.read_csv(os.path.join(results_path,"Customm.csv"), header=False)
+        return dfLR,dfSTCONV,dfCUSTOM
+
     def visualization(self) -> Tuple[pd.DataFrame,pd.DataFrame]:
         return self.__read_visualization()
 
