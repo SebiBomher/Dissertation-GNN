@@ -105,8 +105,8 @@ def CorrelationSpeedOccupancy(df: pd.DataFrame, path_save: str, node_id : int) -
 
 
 def BarPlotSamplesObserved(df: pd.DataFrame, path_save: str) -> None:
-    # TODO
-    fig = px.box(df, x="time", y="total_bill")
+    df = df.groupby(["Observed"]).size().reset_index(name='Count')
+    fig = px.bar(df, x="Observed", y="Count")
     fig.show()
     fig.write_image(path_save)
 
@@ -188,4 +188,4 @@ if __name__ == '__main__':
     TableFinalResults(dfLR,dfSTCONV,dfCUSTOM,os.path.join(path_save_plots,"tablefinal.png"))
     Training(dfSTCONV,os.path.join(path_save_plots,"trainingSTCONV.png"))
     Training(dfCUSTOM,os.path.join(path_save_plots,"trainingCustom.png"))
-    # BarPlotSamplesObserved(dfInfo,os.path.join(path_save_plots,"barplot.png"))
+    BarPlotSamplesObserved(dfInfo,os.path.join(path_save_plots,"barplot.png"))
