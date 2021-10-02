@@ -1,3 +1,4 @@
+import datetime
 import math
 import os
 import numpy as np
@@ -8,6 +9,8 @@ from glob import glob
 from enum import Enum
 import pandas as pd
 from sklearn.preprocessing import normalize
+import pyarrow as pa
+import pyarrow.parquet as pq
 class DatasetSizeNumber(Enum):
     r"""
         Number of DatasetSizes, the total number of nodes per each dataset type.
@@ -142,15 +145,19 @@ class DataReader():
         print("Reading Information")
         nb_days = 0
         dataframeInfo = pd.DataFrame(columns = columnsInfo)
+
         for file in glob(txtFiles):
             print("Reading day {0}".format(nb_days + 1))
             with open(file) as f:
-                dataframeInfo=dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo),ignore_index=True)
+                dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo),ignore_index=True)
+                day = None
                 nb_days += 1
+            
             if nb_days == 5:
                 break
+
         print("Finished Reading Information")
-        return dataframeInfo,dataframeMetadata
+        return dataframeInfo ,dataframeMetadata
 
     def __get_number_of_nodes(self) -> None:
         r"""
