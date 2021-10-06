@@ -78,19 +78,22 @@ class TestLog():
     def __test_and_log_STCONV(self) -> None:
         #TODO
         dfResults = pd.DataFrame(
-            columns=["Epsilon", "Lamda", "Size", "Criterion", "Loss", "OptimizerType", "Checkpoint"])
+            columns=["Epsilon", "Lamda", "Size", "Criterion", "Loss", "OptimizerType", "Checkpoint","Trial"])
         for node_size in DatasetSize:
+            if node_size == DatasetSize.Experimental:
+                continue
             folders_results = os.path.join(
                 self.results_ray, "STCONV_{0}".format(str(node_size.name)), "*")
+            index = 0
             for directory in glob.glob(folders_results):
                 if os.path.isdir(directory):
+                    index +=1
                     params_json = os.path.join(directory, "params.json")
                     with open(params_json, "r") as json_file:
                         data = json.load(json_file)
                         epsilon = (float)(data["epsilon"])
                         lamda = (int)(data["lamda"])
                         optimizer_type = (data["optimizer_type"])
-
                     _, _, test_dataset_STCONV = STConvDataset.get_dataset_STCONV(
                         path_proccessed_data=self.proccessed_data_path,
                         train_ratio=self.train_ratio,
@@ -103,7 +106,7 @@ class TestLog():
                         nodes_size=node_size,
                         datareader=self.datareader,
                         device=self.device)
-                    checkpoints = os.path.join(folders_results, "checkpoint_*")
+                    checkpoints = os.path.join(directory, "checkpoint_*")
                     for checkpoint in glob.glob(checkpoints):
                         checkpoint_index = Path(checkpoint).stem.split("_")[1]
                         model = STConvModel(node_features=self.num_features,
@@ -139,14 +142,16 @@ class TestLog():
                                        "Criterion": str(criterion.__name__),
                                        "Loss": str(loss),
                                        "OptimizerType": optimizer_type,
-                                       "Checkpoint": checkpoint_index
+                                       "Checkpoint": checkpoint_index,
+                                       "Trial": index
                                        }
                             print(results)
                             dfResults = dfResults.append(
                                 results, ignore_index=True)
 
-        file_save = os.path.join(self.results_folder, "STCONV.csv")
-        dfResults.to_csv(path_or_buf=file_save, index=False)
+                    file_save = os.path.join(self.results_folder, "STCONV_{0}_{1}.csv".format(str(node_size.name),index))
+                    dfResults.to_csv(path_or_buf=file_save, index=False)
+                    dfResults = dfResults[0:0]
 
     """
         Function to test and log the Custom model
@@ -155,12 +160,14 @@ class TestLog():
     def __test_and_log_CUSTOM(self) -> None:
         # TODO
         dfResults = pd.DataFrame(
-            columns=["Epsilon", "Lamda", "Size", "Criterion", "Loss", "OptimizerType", "Checkpoint"])
+            columns=["Epsilon", "Lamda", "Size", "Criterion", "Loss", "OptimizerType", "Checkpoint","Trial"])
         for node_size in DatasetSize:
             folders_results = os.path.join(
                 self.results_ray, "CUSTOM_{0}".format(str(node_size.name)), "*")
+            index = 0
             for directory in glob.glob(folders_results):
                 if os.path.isdir(directory):
+                    index +=1
                     params_json = os.path.join(directory, "params.json")
                     with open(params_json, "r") as json_file:
                         data = json.load(json_file)
@@ -179,7 +186,7 @@ class TestLog():
                         datareader=self.datareader,
                         device=self.device)
 
-                    checkpoints = os.path.join(folders_results, "checkpoint_*")
+                    checkpoints = os.path.join(directory, "checkpoint_*")
                     for checkpoint in glob.glob(checkpoints):
                         checkpoint_index = Path(checkpoint).stem.split("_")[1]
 
@@ -212,14 +219,16 @@ class TestLog():
                                        "Criterion": str(criterion.__name__),
                                        "Loss": str(loss),
                                        "OptimizerType": optimizer_type,
-                                       "Checkpoint": checkpoint_index
+                                       "Checkpoint": checkpoint_index,
+                                       "Trial": index
                                        }
                             print(results)
                             dfResults = dfResults.append(
                                 results, ignore_index=True)
 
-        file_save = os.path.join(self.results_folder, "CUSTOM.csv")
-        dfResults.to_csv(path_or_buf=file_save, index=False)
+                    file_save = os.path.join(self.results_folder, "CUSTOM_{0}_{1}.csv".format(str(node_size.name),index))
+                    dfResults.to_csv(path_or_buf=file_save, index=False)
+                    dfResults = dfResults[0:0]
 
     def __test(self, model, criterion, dataset):
         model.eval()
@@ -249,11 +258,11 @@ class TestLog():
 
 
 if __name__ == '__main__':
-    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
-    checkpoint_LR = "D:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
-    results_folder = "D:\\FacultateMasterAI\\Dissertation-GNN\\Results"
-    results_ray = "D:\\FacultateMasterAI\\Results-RAY"
+    path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
+    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    checkpoint_LR = "E:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
+    results_folder = "E:\\FacultateMasterAI\\Dissertation-GNN\\Results"
+    results_ray = "E:\\FacultateMasterAI\\Results-RAY"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
     datareader = DataReader(path_data, graph_info_txt)
     TestLog(datareader, path_processed_data,
