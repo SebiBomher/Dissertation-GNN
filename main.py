@@ -5,9 +5,9 @@ from ray.tune.schedulers import ASHAScheduler
 
 if __name__ == '__main__':
     num_samples = 16
-    path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
-    checkpoint_LR = "E:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
+    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
+    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    checkpoint_LR = "D:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
     datareader = DataReader(path_data,graph_info_txt)
     
@@ -51,36 +51,36 @@ if __name__ == '__main__':
         "model_type" : ModelType.LinearRegression
     }
 
-    #Learn.startCUSTOM(config_partial,info,param)
+    Learn.startCUSTOM(config_partial,info,param)
     
     # for datasize in DatasetSize:
 
-    param["nodes_size"] = DatasetSize.Medium
+    # param["nodes_size"] = DatasetSize.Medium
 
-    scheduler = ASHAScheduler(
-        max_t=nb_epoch,
-        grace_period=100,
-        reduction_factor=3)
+    # scheduler = ASHAScheduler(
+    #     max_t=nb_epoch,
+    #     grace_period=100,
+    #     reduction_factor=3)
 
-    info = {
-        "criterion": LossFunction.MAE,
-        "model_type" : ModelType.Custom
-    }
+    # info = {
+    #     "criterion": LossFunction.MAE,
+    #     "model_type" : ModelType.Custom
+    # }
 
-    config["hidden_channels"] = tune.choice([0])
-    result = tune.run(
-        tune.with_parameters(Learn.startCUSTOM, info = info, param = param),
-        resources_per_trial={"cpu": 8, "gpu": 1},
-        config=config,
-        metric="loss",
-        mode="min",
-        num_samples=num_samples,
-        scheduler=scheduler
-    )
+    # config["hidden_channels"] = tune.choice([0])
+    # result = tune.run(
+    #     tune.with_parameters(Learn.startCUSTOM, info = info, param = param),
+    #     resources_per_trial={"cpu": 8, "gpu": 1},
+    #     config=config,
+    #     metric="loss",
+    #     mode="min",
+    #     num_samples=num_samples,
+    #     scheduler=scheduler
+    # )
 
-    best_trial = result.get_best_trial("loss", "min", "last")
-    print("Best trial config: {}".format(best_trial.config))
-    print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))
+    # best_trial = result.get_best_trial("loss", "min", "last")
+    # print("Best trial config: {}".format(best_trial.config))
+    # print("Best trial for Custom model final validation loss: {}".format(best_trial.last_result["loss"]))
 
 
     # scheduler = ASHAScheduler(

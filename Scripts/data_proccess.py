@@ -81,9 +81,29 @@ class DataReader():
         self.nb_days = 0
 
     def results(self, results_path)-> Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]:
-        dfLR = pd.read_csv(os.path.join(results_path,"LinearRegression.csv"), header=False)
-        dfSTCONV = pd.read_csv(os.path.join(results_path,"STCONV.csv"), header=False)
-        dfCUSTOM = pd.read_csv(os.path.join(results_path,"Customm.csv"), header=False)
+        dfLR = pd.read_csv(os.path.join(results_path,"LinearRegression.csv"))
+        columnsInfo = ["Epsilon","Lamda","Size","Criterion","Loss","OptimizerType","Checkpoint","Trial"]
+
+        STCONVFile = os.path.join(results_path,"STCONV.csv")
+        if not(os.path.exists(STCONVFile)):
+            dataframeInfo = pd.DataFrame(columns = columnsInfo)
+            STConvFiles = os.path.join(results_path,"STCONV_*_*.csv")
+            for file in glob(STConvFiles):
+                with open(file) as f:
+                    dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
+            dataframeInfo.to_csv(STCONVFile)
+
+        CustomFile = os.path.join(results_path,"CUSTOM.csv")
+        if not(os.path.exists(CustomFile)):
+            dataframeInfo = pd.DataFrame(columns = columnsInfo)
+            CustomFiles = os.path.join(results_path,"CUSTOM*_*.csv")
+            for file in glob(CustomFiles):
+                with open(file) as f:
+                    dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
+            dataframeInfo.to_csv(CustomFile)
+
+        dfSTCONV = pd.read_csv(os.path.join(results_path,"STCONV.csv"))
+        dfCUSTOM = pd.read_csv(os.path.join(results_path,"CUSTOM.csv"))
         return dfLR,dfSTCONV,dfCUSTOM
 
     def visualization(self) -> Tuple[pd.DataFrame,pd.DataFrame]:

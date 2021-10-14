@@ -69,6 +69,7 @@ class TestLog():
                     print(result)
                     dfResults = dfResults.append(result, ignore_index=True)
         file_save = os.path.join(self.results_folder, "LinearRegression.csv")
+        print(file_save)
         dfResults.to_csv(path_or_buf=file_save, index=False)
         return True
     """
@@ -252,17 +253,17 @@ class TestLog():
     def __test_and_log(self) -> None:
         if not os.path.exists(self.results_folder):
             os.makedirs(self.results_folder)
-        # self.__test_and_log_LR()
-        self.__test_and_log_STCONV()
-        self.__test_and_log_CUSTOM()
+        self.__test_and_log_LR()
+        # self.__test_and_log_STCONV()
+        # self.__test_and_log_CUSTOM()
 
 
 if __name__ == '__main__':
-    path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
-    checkpoint_LR = "E:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
-    results_folder = "E:\\FacultateMasterAI\\Dissertation-GNN\\Results"
-    results_ray = "E:\\FacultateMasterAI\\Results-RAY"
+    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
+    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    checkpoint_LR = "D:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
+    results_folder = "D:\\FacultateMasterAI\\Dissertation-GNN\\Results"
+    results_ray = "D:\\FacultateMasterAI\\Results-RAY"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
     datareader = DataReader(path_data, graph_info_txt)
     TestLog(datareader, path_processed_data,

@@ -65,7 +65,6 @@ class Learn():
         self.val_ratio = param["val_ratio"]
         self.checkpoint_dir = param["checkpoint_dir"]
         self.checkpoint_LR = param["checkpoint_LR"]
-        self.results_folder = param["results_folder"]
         self.learning_rate = param["learning_rate"]
         self.EarlyStoppingPatience = param["EarlyStoppingPatience"]
         self.nb_epoch = param["nb_epoch"]

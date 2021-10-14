@@ -7,7 +7,7 @@ import os
 import datetime
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-
+from scipy import stats
 
 def BoxPlotSpeed(df: pd.DataFrame, path_save: str) -> None:
     df = df[df['Speed'].notna()]
@@ -75,12 +75,6 @@ def GraphHeatmap(proccessed_data_path: str, path_save: str, datareader: DataRead
                 fig.write_image("{0}_{1}_{2}_{3}.png".format(
                     path_save, epsilon, lamda, dataset.name))
 
-def Training(dfResult: pd.DataFrame, path_save: str) -> None:
-    dfResult = dfResult.groupby(["Trial","Size"])
-    fig = px.line(dfResult, x="Trial", y="Loss", color='Size')
-
-    fig.write_image(path_save)
-
 def CorrelationSpeedFlow(df: pd.DataFrame, path_save: str, node_id : int) -> None:
     df = df[df['Speed'].notna()]
     df = df[df['Flow'].notna()]
@@ -110,53 +104,117 @@ def BarPlotSamplesObserved(df: pd.DataFrame, path_save: str) -> None:
 
     fig.write_image(path_save)
 
-
-def BoxPlotResults(df: pd.DataFrame, path_save: str) -> None:
-    df = df[["Criterion","Loss"]]
-    fig = px.box(df, x="Criterion", y="Loss")
-
-    fig.write_image(path_save)
-
-
-def MapPlotResults(dfInfo: pd.DataFrame, dfMeta: pd.DataFrame, path_save: str) -> None:
-    for criterion in LossFunction.Criterions:
-        dfInfo = dfInfo[dfInfo["Criterion"] == criterion.__name__]
-    dfInfo = dfInfo.groupby(["Criterion","Node_Id"]).min()
-    df = pd.merge(dfMeta, dfInfo, left_on='ID', right_on='Node_ID')
-    fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", color="Loss",
-                            color_continuous_scale=px.colors.sequential.Bluered, zoom=8, mapbox_style="open-street-map", title='Result Map for Function {0}'.format(criterion.__name__))
-
-    fig.write_image(path_save)
-
-
-def TableFinalResults(dfLR: pd.DataFrame, dfSTCONV: pd.DataFrame, dfCUSTOM: pd.DataFrame, path_save: str) -> None:
+def TableFinalResultsDataset(dfSTCONV: pd.DataFrame, dfCUSTOM: pd.DataFrame, path_save: str, datasetsize : DatasetSize) -> None:
     df = pd.DataFrame(columns=["Type", "RMSE", "MAPE", "MAE", "MSE"])
 
-    dfLR = dfLR[["Criterion","Loss"]]
-    dfLR = dfLR.groupby(["Criterion"]).min()
-
-    dfSTCONV = dfSTCONV[["Criterion","Loss"]]
-    dfSTCONV = dfSTCONV.groupby(["Criterion"]).min()
-
+    dfCUSTOM = dfCUSTOM[dfCUSTOM["Size"] == datasetsize.name]
     dfCUSTOM = dfCUSTOM[["Criterion","Loss"]]
-    dfCUSTOM = dfCUSTOM.groupby(["Criterion"]).min()
+    dfCUSTOM = dfCUSTOM.groupby(["Criterion"]).min().T
 
-    df.append({"Type" : "Linear Regression","RMSE": dfLR["RMSE"],"MAPE": dfLR["MAPE"],"MAE": dfLR["MAE"],"MSE": dfLR["MSE"]})
-    df.append({"Type" : "STCONV","RMSE": dfSTCONV["RMSE"],"MAPE": dfSTCONV["MAPE"],"MAE": dfSTCONV["MAE"],"MSE": dfSTCONV["MSE"]})
-    df.append({"Type" : "Custom","RMSE": dfCUSTOM["RMSE"],"MAPE": dfCUSTOM["MAPE"],"MAE": dfCUSTOM["MAE"],"MSE": dfCUSTOM["MSE"]})
+    dfSTCONV = dfSTCONV[dfCUSTOM["Size"] == datasetsize.name]
+    dfSTCONV = dfSTCONV[["Criterion","Loss"]]
+    dfSTCONV = dfSTCONV.groupby(["Criterion"]).min().T
+
+    df = df.append({"Type" : "STCONV (minimum)","RMSE": format((float)(dfSTCONV["RMSE"].iloc[0]),'.2f'),"MAPE": format((float)(dfSTCONV["MAPE"].iloc[0]),'.2f'),"MAE": format((float)(dfSTCONV["MAE"].iloc[0]),'.2f'),"MSE": format((float)(dfSTCONV["MSE"].iloc[0]),'.2f')},ignore_index=True)
+    df = df.append({"Type" : "Custom (minimum)","RMSE": format((float)(dfCUSTOM["RMSE"].iloc[0]),'.2f'),"MAPE": format((float)(dfCUSTOM["MAPE"].iloc[0]),'.2f'),"MAE": format((float)(dfCUSTOM["MAE"].iloc[0]),'.2f'),"MSE": format((float)(dfCUSTOM["MSE"].iloc[0]),'.2f')},ignore_index=True)
 
     fig = go.Figure(data=[go.Table(
         header=dict(values=list(df.columns),
                     fill_color='paleturquoise',
                     align='left'),
         cells=dict(values=[df.Type, df.RMSE, df.MAPE, df.MAE, df.MSE],
-                   fill_color='lavender',
-                   align='left'))
+                    fill_color='lavender',
+                    align='left'))
     ])
 
 
     fig.write_image(path_save)
 
+def TableFinalResults(dfLR: pd.DataFrame, dfSTCONV: pd.DataFrame, dfCUSTOM: pd.DataFrame, path_save: str) -> None:
+    df = pd.DataFrame(columns=["Type", "Size", "RMSE", "MAPE", "MAE", "MSE"])
+
+    dfLR = dfLR[["Criterion","Loss"]]
+    dfLR = dfLR.groupby(["Criterion"]).mean().T
+
+    dfSTCONV = dfSTCONV[["Criterion","Loss","Size"]]
+    dfCUSTOM = dfCUSTOM[["Criterion","Loss","Size"]]
+
+    df = df.append({"Type" : "Linear Regression", "Size" : "All" ,"RMSE": format((float)(dfLR["RMSE"].iloc[0]),'.2f'),"MAPE": format((float)(dfLR["MAPE"].iloc[0]),'.2f'),"MAE": format((float)(dfLR["MAE"].iloc[0]),'.2f'),"MSE": format((float)(dfLR["MSE"].iloc[0]),'.2f')},ignore_index=True)
+    
+    
+    for datasetsize in DatasetSize:
+        dfSTCONVTemp = dfSTCONV[dfSTCONV["Size"] == datasetsize.name]
+        dfSTCONVTemp = dfSTCONVTemp[["Criterion","Loss"]]
+        dfSTCONVTemp = dfSTCONVTemp.groupby(["Criterion"]).min().T
+        df = df.append({"Type" : "STCONV",
+                         "Size" : datasetsize.name ,
+                         "RMSE": format((float)(dfSTCONVTemp["RMSE"].iloc[0]),'.2f'),
+                         "MAPE": format((float)(dfSTCONVTemp["MAPE"].iloc[0]),'.2f'),
+                         "MAE": format((float)(dfSTCONVTemp["MAE"].iloc[0]),'.2f'),
+                         "MSE": format((float)(dfSTCONVTemp["MSE"].iloc[0]),'.2f')},ignore_index=True)
+    
+    for datasetsize in DatasetSize:
+        dfCUSTOMTemp = dfCUSTOM[dfCUSTOM["Size"] == datasetsize.name]
+        dfCUSTOMTemp = dfCUSTOMTemp[["Criterion","Loss"]]
+        dfCUSTOMTemp = dfCUSTOMTemp.groupby(["Criterion"]).min().T
+        df = df.append({"Type" : "Custom",
+                        "Size" : datasetsize.name ,
+                        "RMSE": format((float)(dfCUSTOMTemp["RMSE"].iloc[0]),'.2f'),
+                        "MAPE": format((float)(dfCUSTOMTemp["MAPE"].iloc[0]),'.2f'),
+                        "MAE": format((float)(dfCUSTOMTemp["MAE"].iloc[0]),'.2f'),
+                        "MSE": format((float)(dfCUSTOMTemp["MSE"].iloc[0]),'.2f')},ignore_index=True)
+    fig = go.Figure(data=[go.Table(
+        header=dict(values=list(df.columns),
+                    fill_color='paleturquoise',
+                    align='left'),
+        cells=dict(values=[df.Type, df.Size, df.RMSE, df.MAPE, df.MAE, df.MSE],
+                   fill_color='lavender',
+                   align='left'))
+    ])
+
+    fig.write_image(path_save)
+
+def BoxPlotResultsLR(dfLR: pd.DataFrame, path_save: str) -> None:
+    dfLR = dfLR[dfLR["Loss"] < 100]
+    for criterion in LossFunction.Criterions():
+        dfTemp = dfLR[dfLR["Criterion"] == criterion.__name__]
+        fig = px.box(dfTemp, x="Criterion", y="Loss")
+        fig.write_image(os.path.join(path_save,"boxplot_result_LR_{0}.png".format(criterion.__name__)))
+
+def BoxPlotResults(dfSTCONV: pd.DataFrame, dfCUSTOM: pd.DataFrame, path_save: str) -> None:
+
+    dfSTCONV["Type"] = "STCONV"
+    dfCUSTOM["Type"] = "Custom"
+    df = dfSTCONV.append(dfCUSTOM,ignore_index=True)
+    for criterion in LossFunction.Criterions():
+        dfTemp = df[df["Criterion"] == criterion.__name__]
+        fig = px.box(dfTemp, x="Size", y="Loss", color="Type")
+        fig.write_image(os.path.join(path_save,"boxplot_result_{0}.png".format(criterion.__name__)))
+
+def RegressionLRTruePredicted(dfLR : pd.DataFrame,path_save : str) -> None:
+    #TODO
+    fig = px.box(dfLR, x="Size", y="Loss", color="Type")
+    fig.write_image(path_save)
+
+def RegressionLoss(df : pd.DataFrame,path_save : str) -> None:
+    #TODO
+    fig = px.box(df, x="Size", y="Loss", color="Type")
+    fig.write_image(path_save)
+
+def RegressionGNNTruePredicted(df : pd.DataFrame,path_save : str) -> None:
+    #TODO
+    fig = px.box(df, x="Size", y="Loss", color="Type")
+    fig.write_image(path_save)
+
+def HeatMapLoss(df : pd.DataFrame,path_save : str) -> None:
+    #TODO
+    fig = px.box(df, x="Size", y="Loss", color="Type")
+    fig.write_image(path_save)
+
+def BarPlotWaitingTimes(df : pd.DataFrame,path_save : str) -> None:
+    #TODO
+    fig = px.box(df, x="Size", y="Loss", color="Type")
+    fig.write_image(path_save)
 
 if __name__ == '__main__':
     # TODO
@@ -168,24 +226,21 @@ if __name__ == '__main__':
     if not os.path.exists(path_save_plots):
         os.mkdir(path_save_plots)
     datareader = DataReader(path_data, graph_info_txt)
-    dfInfo, dfMeta = datareader.visualization()
-    # dfLR,dfSTCONV,dfCUSTOM = datareader.results(path_results)
-    BoxPlotSpeed(dfInfo,os.path.join(path_save_plots,"boxplot.png"))
-    MapPlotSensors(dfMeta,os.path.join(path_save_plots,"mapplotAll.png"))
-    MapPlotSensors(dfMeta,os.path.join(path_save_plots,"mapplotExperimental.png"),path_processed_data,DatasetSize.Experimental)
-    MapPlotSensors(dfMeta,os.path.join(path_save_plots,"mapplotSmall.png"),path_processed_data,DatasetSize.Small)
-    MapPlotSensors(dfMeta,os.path.join(path_save_plots,"mapplotMedium.png"),path_processed_data,DatasetSize.Medium)
-    PieChartRoadwayType(dfMeta,os.path.join(path_save_plots,"piechart.png"))
-    MapHeatmapSpeed(dfInfo,dfMeta,os.path.join(path_save_plots,"mapheat9.png"),9)
-    MapHeatmapSpeed(dfInfo,dfMeta,os.path.join(path_save_plots,"mapheat15.png"),15)
-    MapHeatmapSpeed(dfInfo,dfMeta,os.path.join(path_save_plots,"mapheat18.png"),18)
-    MapHeatmapSpeed(dfInfo,dfMeta,os.path.join(path_save_plots,"mapheat22.png"),22)
-    GraphHeatmap(path_processed_data, os.path.join(path_save_plots, "graph.png"), datareader)
-    BarPlotSamplesObserved(dfInfo,os.path.join(path_save_plots,"barplot.png"))
-    # BoxPlotResults(dfLR,path_processed_data, os.path.join(path_save_plots, "BoxPlotLR.png"), datareader)
-    # BoxPlotResults(dfSTCONV,path_processed_data, os.path.join(path_save_plots, "BoxPlotSTCONV.png"), datareader)
-    # BoxPlotResults(dfCUSTOM,path_processed_data, os.path.join(path_save_plots, "BoxPlotCUSTOM.png"), datareader)
-    # MapPlotResults(dfLR, os.path.join(path_save_plots, "MapPlotResults.png"), datareader)
-    # TableFinalResults(dfLR,dfSTCONV,dfCUSTOM,os.path.join(path_save_plots,"tablefinal.png"))
-    # Training(dfSTCONV,os.path.join(path_save_plots,"trainingSTCONV.png"))
-    # Training(dfCUSTOM,os.path.join(path_save_plots,"trainingCustom.png"))
+    # dfInfo, dfMeta = datareader.visualization()
+    # BoxPlotSpeed(dfInfo,os.path.join(path_save_plots,"boxplot.png"))
+    # MapPlotSensors(dfMeta,os.path.join(path_save_plots,"mapplotAll.png"))
+    # MapPlotSensors(dfMeta,os.path.join(path_save_plots,"mapplotExperimental.png"),path_processed_data,DatasetSize.Experimental)
+    # MapPlotSensors(dfMeta,os.path.join(path_save_plots,"mapplotSmall.png"),path_processed_data,DatasetSize.Small)
+    # MapPlotSensors(dfMeta,os.path.join(path_save_plots,"mapplotMedium.png"),path_processed_data,DatasetSize.Medium)
+    # PieChartRoadwayType(dfMeta,os.path.join(path_save_plots,"piechart.png"))
+    # MapHeatmapSpeed(dfInfo,dfMeta,os.path.join(path_save_plots,"mapheat9.png"),9)
+    # MapHeatmapSpeed(dfInfo,dfMeta,os.path.join(path_save_plots,"mapheat15.png"),15)
+    # MapHeatmapSpeed(dfInfo,dfMeta,os.path.join(path_save_plots,"mapheat18.png"),18)
+    # MapHeatmapSpeed(dfInfo,dfMeta,os.path.join(path_save_plots,"mapheat22.png"),22)
+    # GraphHeatmap(path_processed_data, os.path.join(path_save_plots, "graph.png"), datareader)
+    # BarPlotSamplesObserved(dfInfo,os.path.join(path_save_plots,"barplot.png"))
+
+    dfLR,dfSTCONV,dfCUSTOM = datareader.results(path_results)
+    # TableFinalResults(dfLR,dfSTCONV,dfCUSTOM,os.path.join(path_save_plots,"tableresults.png"))
+    # BoxPlotResults(dfSTCONV,dfCUSTOM,path_save_plots)
+    # BoxPlotResultsLR(dfLR,path_save_plots)
