@@ -1,3 +1,4 @@
+from Scripts.datasetsClasses import LinearRegressionDataset
 from Scripts.learn import LossFunction
 import numpy as np
 import pandas as pd
@@ -7,7 +8,8 @@ import os
 import datetime
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from scipy import stats
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import GridSearchCV
 
 def BoxPlotSpeed(df: pd.DataFrame, path_save: str) -> None:
     df = df[df['Speed'].notna()]
@@ -191,10 +193,27 @@ def BoxPlotResults(dfSTCONV: pd.DataFrame, dfCUSTOM: pd.DataFrame, path_save: st
         fig = px.box(dfTemp, x="Size", y="Loss", color="Type")
         fig.write_image(os.path.join(path_save,"boxplot_result_{0}.png".format(criterion.__name__)))
 
-def RegressionLRTruePredicted(dfLR : pd.DataFrame,path_save : str) -> None:
+def RegressionLRTruePredicted(dfLR : pd.DataFrame, datareader : DataReader,proccessed_data_path : str,path_save : str) -> None:
     #TODO
-    fig = px.box(dfLR, x="Size", y="Loss", color="Type")
-    fig.write_image(path_save)
+    
+    device = "cpu"
+    parameters = {
+        'normalize':[True],
+    }
+
+    lr_model = LinearRegression()
+    clf = GridSearchCV(lr_model, parameters, refit=True, cv=5)
+    for index, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(LinearRegressionDataset(proccessed_data_path,datareader,device)):
+        best_model = clf.fit(X_train,Y_train)
+        y_pred = best_model.predict(X_test)
+        Y_test = [item for sublist in Y_test.tolist() for item in sublist]
+        y_pred = [item for sublist in y_pred.tolist() for item in sublist]
+        dict1 = dict(Time = np.arange(len(y_pred)),Actual = Y_test,Predicted = y_pred)
+        df = pd.DataFrame(dict1)
+        fig = px.line(df, x='Time', y=["Actual","Predicted"], title="Prediction for node {0}".format(node_id))
+        fig.write_image(os.path.join(path_save,"RegressionLRTruePredicted","{0}.png".format(node_id)))
+        print("Regression LR True Predicted node {0}".format(node_id))
+        break
 
 def RegressionLoss(df : pd.DataFrame,path_save : str) -> None:
     #TODO
@@ -244,3 +263,4 @@ if __name__ == '__main__':
     # TableFinalResults(dfLR,dfSTCONV,dfCUSTOM,os.path.join(path_save_plots,"tableresults.png"))
     # BoxPlotResults(dfSTCONV,dfCUSTOM,path_save_plots)
     # BoxPlotResultsLR(dfLR,path_save_plots)
+    RegressionLRTruePredicted(dfLR,datareader,path_processed_data,path_save_plots)
