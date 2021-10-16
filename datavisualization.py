@@ -215,19 +215,48 @@ def RegressionLRTruePredicted(dfLR : pd.DataFrame, datareader : DataReader,procc
         print("Regression LR True Predicted node {0}".format(node_id))
         break
 
-def RegressionLoss(df : pd.DataFrame,path_save : str) -> None:
-    #TODO
-    fig = px.box(df, x="Size", y="Loss", color="Type")
-    fig.write_image(path_save)
+def RegressionLoss(dfSTCONV: pd.DataFrame, dfCUSTOM: pd.DataFrame,path_save : str) -> None:
+    #TODO 
+    dfPlot = pd.DataFrame()
+    data = {}
+    dfPlot["Time"] = np.arange(300)
+    for size in DatasetSize:
+        if size != DatasetSize.Medium:
+            dfSTCONVTemp = dfSTCONV[dfSTCONV["Criterion"] == "MAE"]
+            dfSTCONVTemp = dfSTCONVTemp[dfSTCONVTemp["Size"] == size.name]
+            dfSTCONVTemp2 = dfSTCONVTemp[["Criterion","Loss"]]
+            dfSTCONVTemp2 = dfSTCONVTemp2.groupby(["Criterion"]).min()
+            minLoss = dfSTCONVTemp2["Loss"].iloc[0]
+            BEstTrial = dfSTCONVTemp[dfSTCONVTemp["Loss"] == minLoss]
+            df = dfSTCONVTemp[dfSTCONVTemp["Trial"] == BEstTrial["Trial"].iloc[0]]
+            datalist = df["Loss"].tolist()
+            datalist.extend(np.zeros(300 - len(datalist)))
+            dfPlot["STCONV_{0}".format(size.name)] = datalist
 
-def RegressionGNNTruePredicted(df : pd.DataFrame,path_save : str) -> None:
-    #TODO
-    fig = px.box(df, x="Size", y="Loss", color="Type")
-    fig.write_image(path_save)
+        dfCUSTOMTemp = dfCUSTOM[dfCUSTOM["Criterion"] == "MAE"]
+        dfCUSTOMTemp = dfCUSTOMTemp[dfCUSTOMTemp["Size"] == size.name]
+        dfCUSTOMTemp2 = dfCUSTOMTemp[["Criterion","Loss"]]
+        dfCUSTOMTemp2 = dfCUSTOMTemp2.groupby(["Criterion"]).min()
+        minLoss = dfCUSTOMTemp2["Loss"].iloc[0]
+        BEstTrial = dfCUSTOMTemp[dfCUSTOMTemp["Loss"] == minLoss]
+        df = dfCUSTOMTemp[dfCUSTOMTemp["Trial"] == BEstTrial["Trial"].iloc[0]]
+        datalist = df["Loss"].tolist()
+        datalist.extend(np.zeros(300 - len(datalist)))
+        dfPlot["CUSTOM_{0}".format(size.name)] = datalist
+    columns = dfPlot.columns.tolist()
+    columns.pop(0)
+    # print(columns)
+    fig = px.line(dfPlot, x="Time", y= columns)
+    fig.show()
+    fig.write_image(os.path.join(path_save,"Training_no_medium.png"))
 
-def HeatMapLoss(df : pd.DataFrame,path_save : str) -> None:
-    #TODO
-    fig = px.box(df, x="Size", y="Loss", color="Type")
+def HeatMapLoss(dfInfo : pd.DataFrame,dfMeta : pd.DataFrame,path_save : str) -> None:
+    dfInfo = dfInfo[dfInfo["Criterion"] == "MAE"]
+    dfInfo = dfInfo[dfInfo["Loss"] < 20]
+    df = pd.merge(dfMeta, dfInfo, left_on='ID', right_on='Node_Id')
+    fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", color="Loss",
+                            color_continuous_scale=px.colors.sequential.Bluered, zoom=8, mapbox_style="open-street-map", title='Map for Loss MAE')
+
     fig.write_image(path_save)
 
 def BarPlotWaitingTimes(df : pd.DataFrame,path_save : str) -> None:
@@ -236,12 +265,11 @@ def BarPlotWaitingTimes(df : pd.DataFrame,path_save : str) -> None:
     fig.write_image(path_save)
 
 if __name__ == '__main__':
-    # TODO
-    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
+    path_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Data"
     graph_info_txt = "d07_text_meta_2021_03_27.txt"
-    path_save_plots = "D:\\FacultateMasterAI\\Dissertation-GNN\\Plots"
-    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
-    path_results= "D:\\FacultateMasterAI\\Dissertation-GNN\\Results"
+    path_save_plots = "E:\\FacultateMasterAI\\Dissertation-GNN\\Plots"
+    path_processed_data = "E:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
+    path_results= "E:\\FacultateMasterAI\\Dissertation-GNN\\Results"
     if not os.path.exists(path_save_plots):
         os.mkdir(path_save_plots)
     datareader = DataReader(path_data, graph_info_txt)
@@ -263,4 +291,6 @@ if __name__ == '__main__':
     # TableFinalResults(dfLR,dfSTCONV,dfCUSTOM,os.path.join(path_save_plots,"tableresults.png"))
     # BoxPlotResults(dfSTCONV,dfCUSTOM,path_save_plots)
     # BoxPlotResultsLR(dfLR,path_save_plots)
-    RegressionLRTruePredicted(dfLR,datareader,path_processed_data,path_save_plots)
+    # RegressionLRTruePredicted(dfLR,datareader,path_processed_data,path_save_plots)
+    # HeatMapLoss(dfLR,dfMeta,os.path.join(path_save_plots,"HeatMapLRLossMAE.png"))
+    RegressionLoss(dfSTCONV,dfCUSTOM,path_save_plots)

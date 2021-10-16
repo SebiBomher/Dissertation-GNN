@@ -9,8 +9,6 @@ from glob import glob
 from enum import Enum
 import pandas as pd
 from sklearn.preprocessing import normalize
-import pyarrow as pa
-import pyarrow.parquet as pq
 class DatasetSizeNumber(Enum):
     r"""
         Number of DatasetSizes, the total number of nodes per each dataset type.
