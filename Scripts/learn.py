@@ -1,38 +1,27 @@
 import glob
+from tokenize import Floatnumber
+import numpy as np
+import copy
+from ray.tune.schedulers.async_hyperband import ASHAScheduler
+import torch
+import os
 from ray import tune
 from torch import nn
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
-from Scripts.models import CustomModel, STConvModel
+from Scripts.Utility import Constants, DatasetSize, ModelType, OptimizerType, Folders
+from Scripts.Models import CustomModel, STConvModel
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GridSearchCV
-from Scripts.data_proccess import DatasetSizeNumber, Graph
+from Scripts.DataProccess import DataReader, DatasetSizeNumber, Graph
 from tqdm import tqdm
-import numpy as np
-import copy
-import torch
-import os
 from torch.optim import Adam,RMSprop,Adamax,AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from Scripts.datasetsClasses import CustomDataset, LinearRegressionDataset, STConvDataset
+from Scripts.DatasetClasses import CustomDataset, LinearRegressionDataset, STConvDataset
+from Scripts.Utility import Constant
 from enum import Enum
 import pickle
-class ModelType(Enum):
-    r"""
-    
-    """
-    Custom = 0
-    STCONV = 1
-    LinearRegression = 2
 
-class OptimiserType(Enum):
-    r"""
-    
-    """
-    Adam = 0
-    RMSprop = 1
-    Adamax = 2
-    AdamW = 3
 class LossFunction():
     
     def Criterions():
@@ -53,10 +42,10 @@ class LossFunction():
 class Learn():
 
     def __init__(self,param,info,config):
-        self.batch_size = config["batch_size"]
+        self.batch_size = 8
         self.epsilon = config["epsilon"]
         self.lamda = config["lamda"]
-        self.hidden_channels = config["hidden_channels"]
+        self.hidden_channels = 8
         self.optimizer_type = config["optimizer_type"]
         self.proccessed_data_path = param["proccessed_data_path"]
         self.graph_info_txt = param["graph_info_txt"]
@@ -263,13 +252,13 @@ class Learn():
 
         self.model.to(device)
 
-        if self.optimizer_type == OptimiserType.Adam:
+        if self.optimizer_type == OptimizerType.Adam:
             self.optimizer = Adam(self.model.parameters(), lr=self.learning_rate)
-        elif self.optimizer_type == OptimiserType.RMSprop:
+        elif self.optimizer_type == OptimizerType.RMSprop:
             self.optimizer = RMSprop(self.model.parameters(), lr=self.learning_rate)
-        elif self.optimizer_type == OptimiserType.Adamax:
+        elif self.optimizer_type == OptimizerType.Adamax:
             self.optimizer = Adamax(self.model.parameters(), lr=self.learning_rate)
-        elif self.optimizer_type == OptimiserType.AdamW:
+        elif self.optimizer_type == OptimizerType.AdamW:
             self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate)
 
         self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5, threshold=0.00000001, threshold_mode='abs')
@@ -280,20 +269,85 @@ class Learn():
             self.model.load_state_dict(model_state)
             self.optimizer.load_state_dict(optimizer_state)
 
-    def set_data(config,info,param):
-        learn = Learn(param,info,config)
-        learn.__set_for_data()
+    def set_data(
+            proccessed_data_path : str,
+            datareader : DataReader,
+            device : str):
+        r"""
+            Function to call to make all prerequireing data processing such that everything is done before training starts.
+        """
+        STConvDataset.__save_dataset(proccessed_data_path,datareader,device)
+        CustomDataset.__save_dataset(proccessed_data_path,datareader,device)
+        LinearRegressionDataset.__save_dataset(proccessed_data_path,datareader,device)
         
-    def startCUSTOM(config, info, param):
-        learn = Learn(param,info,config)
-        torch.backends.cudnn.benchmark = True
-        torch.cuda.empty_cache()
+    def __startCUSTOM(config, param):
+        learn = Learn(param,config)
         learn.__set_for_train()
         learn.__train_val_and_test()
 
-    def startSTCONV(config, info, param):
-        learn = Learn(param,info,config)
-        torch.backends.cudnn.benchmark = True
-        torch.cuda.empty_cache()
+    def __startSTCONV(config, param):
+        learn = Learn(param,config)
         learn.__set_for_train()
         learn.__train_val_and_test()
+
+    def startLR(param : dict):
+        learn = Learn(param)
+        learn.__set_for_train()
+        learn.__train_val_and_test()
+
+
+    def HyperParameterTuning(datasetsize : DatasetSize, model : ModelType, datareader : DataReader, criterion : staticmethod) -> None:
+        r"""
+            Function for hyper parameter tuning, it receives a datasetsize, model type, data reader and a loss function as a criterion, returns nothing
+            Creates parameters for the function for the hyper parameter tuning
+        """
+        if ModelType == ModelType.Custom:
+            learnMethod = Learn.__startCUSTOM
+        else:
+            learnMethod = Learn.__startSTCONV
+
+        scheduler = ASHAScheduler(
+            max_t=Constants.nb_epoch,
+            grace_period=Constants.grace_period,
+            reduction_factor=Constants.reduction_factor)
+
+        param = {
+            "learning_rate" : Constants.learning_rate,
+            "num_features" : Constants.num_features,
+            "EarlyStoppingPatience" : Constants.EarlyStoppingPatience,
+            "path_data" : Folders.path_data,
+            "proccessed_data_path" : Folders.proccessed_data_path,
+            "graph_info_txt" : Folders.graph_info_path,
+            "nb_epoch" : Constants.nb_epoch,
+            "datareader" : datareader,
+            "nodes_size" : datasetsize,
+            "train_ratio" : Constants.train_ratio,
+            "val_ratio" : Constants.val_ratio,
+            "test_ratio" : Constants.test_ratio,
+            "checkpoint_LR" : Folders.checkpoint_LR_path,
+            "criterion" : criterion,
+            "model_type" : model
+        }
+
+
+        config = {
+            "K" : tune.choice([1,3,5,7]),
+            "epsilon" : tune.choice([0.1, 0.3, 0.5, 0.7]),
+            "optimizer_type" : tune.choice([OptimizerType.Adam,OptimizerType.AdamW,OptimizerType.Adamax,OptimizerType.RMSprop]),
+            "lamda" : tune.choice([1, 3, 5, 10])
+        }
+
+        result = tune.run(
+            tune.with_parameters(learnMethod, param = param),
+            resources_per_trial={"cpu": 8, "gpu": 1},
+            config=config,
+            metric="loss",
+            mode="min",
+            num_samples=Constants.num_samples,
+            scheduler=scheduler
+        )
+
+        best_trial = result.get_best_trial("loss", "min", "last")
+
+        print("Best trial config: {}".format(best_trial.config))
+        print("Best trial for {} model final validation loss: {}".format(model.name,best_trial.last_result["loss"]))

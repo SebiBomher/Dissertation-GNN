@@ -1,40 +1,13 @@
-import datetime
 import math
 import os
 import numpy as np
+import pandas as pd
 from random import sample
 from typing import Tuple, Union
 from geopy.distance import geodesic
 from glob import glob
-from enum import Enum
-import pandas as pd
 from sklearn.preprocessing import normalize
-class DatasetSizeNumber(Enum):
-    r"""
-        Number of DatasetSizes, the total number of nodes per each dataset type.
 
-            Medium = 480
-            Small = 120
-            Experimental = 5
-    """
-
-    Medium = 480
-    Small = 120
-    Experimental = 8
-
-
-class DatasetSize(Enum):
-    r"""
-        Types of Dataset Sizes.
-            Experimental = 0
-            Small = 1
-            Medium = 2
-            Full = 3
-    """
-
-    Experimental = 0
-    Small = 1
-    Medium = 2
 class DataReader():
     r"""
         DataReader Class, Once initialized it will read data once and will be able to access data without re-reading aditional data

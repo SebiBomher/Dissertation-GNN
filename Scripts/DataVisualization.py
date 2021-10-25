@@ -1,8 +1,8 @@
-from Scripts.datasetsClasses import LinearRegressionDataset
-from Scripts.learn import LossFunction
+from Scripts.DatasetClasses import LinearRegressionDataset
+from Scripts.Learn import LossFunction
 import numpy as np
 import pandas as pd
-from Scripts.data_proccess import DataReader, DatasetSize, DatasetSizeNumber, Graph
+from Scripts.DataProccess import DataReader, DatasetSize, DatasetSizeNumber, Graph
 import plotly.express as px
 import os
 import datetime

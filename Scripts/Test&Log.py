@@ -1,11 +1,11 @@
 from torch.utils.data.dataloader import DataLoader
-from Scripts.models import CustomModel, STConvModel
+from Scripts.Models import CustomModel, STConvModel
 from torch_geometric.data.data import Data
-from Scripts.learn import LossFunction
+from Scripts.Learn import LossFunction
 import pandas as pd
 import torch
-from Scripts.data_proccess import DataReader, DatasetSize, Graph, DatasetSizeNumber
-from Scripts.datasetsClasses import CustomDataset, LinearRegressionDataset, STConvDataset
+from Scripts.DataProccess import DataReader, DatasetSize, Graph, DatasetSizeNumber
+from Scripts.DatasetClasses import CustomDataset, LinearRegressionDataset, STConvDataset
 import glob
 import os
 import pickle
