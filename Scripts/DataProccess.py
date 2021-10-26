@@ -1,3 +1,5 @@
+#region Imports
+
 import math
 import os
 import numpy as np
@@ -7,43 +9,48 @@ from typing import Tuple, Union
 from geopy.distance import geodesic
 from glob import glob
 from sklearn.preprocessing import normalize
+from Scripts.Utility import DatasetSize, DatasetSizeNumber, Folders
+
+#endregion
 
 class DataReader():
     r"""
-        DataReader Class, Once initialized it will read data once and will be able to access data without re-reading aditional data
-
-        Args : 
-            path_raw_data , string :  Path of raw data
-            graph_info_txt , string :  Txt file for the nodes metadata
+        DataReader Class, Once initialized it will read data once and will be able to access data without re-reading additional data
 
         Variables:
-            __path_raw_data , string : Path of raw data - private
+            __path_raw_data , string : Path of raw data
             __graph_info_txt , string : Txt file for the nodes metadata
-            X , List : Data - public
-            Y , List : Labels - public
-            nb_days , integer: Total number of days for the given data - public
-            nodes_location , list[int, float, float] : geographic location of each node containing the id, x coordinate and y coordinate (note : it can contain empty nodes, must be processed) - public
-            empty_nodes , list : Nodes which do not contain data - public
-            good_nodes , list : Nodes which contain data - public
+            X , List : Data
+            Y , List : Labels
+            nb_days , integer: Total number of days for the given data
+            nodes_location , list[int, float, float] : geographic location of each node containing the id, x coordinate and y coordinate (note : it can contain empty nodes, must be processed)
+            empty_nodes , list : Nodes which do not contain data
+            good_nodes , list : Nodes which contain data
 
-        Instance Functions: 
-            __get_number_of_nodes : set total number of nodes (nb_days) from Metadata (may contain empty nodes) -> None - private
-            __read_data : set data and labes (X and Y) from Data (may contain data from empty nodes) -> None - private
-            __get_good_empty_nodes : set empty_nodes and good_nodes from Data (may contain data from empty nodes) -> None - private
-            __read_nodes_data : set nodes_location from Metadata (may contain data from empty nodes) -> None - private
+        Instance Functions:
+            start(), Starts the reading procedure
+            results(), Reads the csv results and combines the Custom and STCONV results into 2 csv files
+            visualization(), Reads the Metadata information and Data information for data visualization
+            get_clean_data_by_nodes(),
+            __get_number_of_nodes(), set total number of nodes (nb_days) from Metadata (may contain empty nodes)
+            __read_data(), set data and labels (X and Y) from Data (may contain data from empty nodes)
+            __get_good_empty_nodes(), set empty_nodes and good_nodes from Data (may contain data from empty nodes)
+            __read_nodes_data(), set nodes_location from Metadata (may contain data from empty nodes)
     """
 
+    #region Constructors & Properties
+
     interval_per_day = 288
-    def __init__(self,path_raw_data : str,graph_info_txt : str) -> None:
+
+    def __init__(self) -> None:
         r"""
-            Constructor, reads all the necessary data.
-            Args : 
-                __path_raw_data , string :  Path of raw data
-                graph_info_txt , string :  Txt file for the nodes metadata
+            Constructor
         """
 
-        self.__path_raw_data = path_raw_data
-        self.__graph_info_txt = graph_info_txt
+        self.__path_raw_data = Folders.path_data
+        self.__graph_info_txt = Folders.graph_info_path
+        self.__results_path = Folders.results_path
+        self.__path_proccessed_data = Folders.proccessed_data_path
         self.good_nodes = []
         self.empty_nodes = []
         self.X = []
@@ -51,47 +58,63 @@ class DataReader():
         self.nodes_location = []
         self.nb_days = 0
 
-    def results(self, results_path)-> Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]:
-        dfLR = pd.read_csv(os.path.join(results_path,"LinearRegression.csv"))
-        columnsInfo = ["Epsilon","Lamda","Size","Criterion","Loss","OptimizerType","Checkpoint","Trial"]
+    #endregion
+    
+    #region Instance Functions
 
-        STCONVFile = os.path.join(results_path,"STCONV.csv")
+    def results(self)-> Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]:
+        r"""
+            Reads the csv results and combines the Custom and STCONV results into 2 csv files.
+            Instance Function.
+            No Arguments.
+            Returns a Tuple of 3 pandas Dataframe, one for each model.
+        """
+
+        dfLR = pd.read_csv(os.path.join(self.__results_path,"LinearRegression.csv"))
+        columnsInfo = ["Epsilon","Sigma","Size","Criterion","Loss","OptimizerType","Checkpoint","Trial"]
+
+        STCONVFile = os.path.join(self.__results_path,"STCONV.csv")
         if not(os.path.exists(STCONVFile)):
             dataframeInfo = pd.DataFrame(columns = columnsInfo)
-            STConvFiles = os.path.join(results_path,"STCONV_*_*.csv")
+            STConvFiles = os.path.join(self.__results_path,"STCONV_*_*.csv")
             for file in glob(STConvFiles):
                 with open(file) as f:
                     dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
             dataframeInfo.to_csv(STCONVFile)
 
-        CustomFile = os.path.join(results_path,"CUSTOM.csv")
+        CustomFile = os.path.join(self.__results_path,"CUSTOM.csv")
         if not(os.path.exists(CustomFile)):
             dataframeInfo = pd.DataFrame(columns = columnsInfo)
-            CustomFiles = os.path.join(results_path,"CUSTOM*_*.csv")
+            CustomFiles = os.path.join(self.__results_path,"CUSTOM*_*.csv")
             for file in glob(CustomFiles):
                 with open(file) as f:
                     dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
             dataframeInfo.to_csv(CustomFile)
 
-        dfSTCONV = pd.read_csv(os.path.join(results_path,"STCONV.csv"))
-        dfCUSTOM = pd.read_csv(os.path.join(results_path,"CUSTOM.csv"))
+        dfSTCONV = pd.read_csv(os.path.join(self.__results_path,"STCONV.csv"))
+        dfCUSTOM = pd.read_csv(os.path.join(self.__results_path,"CUSTOM.csv"))
         return dfLR,dfSTCONV,dfCUSTOM
 
-    def visualization(self) -> Tuple[pd.DataFrame,pd.DataFrame]:
-        return self.__read_visualization()
+    def start(self) -> None:
+        r"""
+            Starts the reading procedure.
+            Instance Function.
+            No arguments.
+            Returns None.
+        """
 
-    def start(self):
         self.__get_good_empty_nodes()
         self.__read_data()
         self.__read_nodes_data()
 
-    def __read_visualization(self) -> Tuple[pd.DataFrame,pd.DataFrame]:
+    def visualization(self) -> Tuple[pd.DataFrame,pd.DataFrame]:
         r"""
-            Instance function.
-            Set data and labes (X and Y) from Data (may contain data from empty nodes).
-            Returns Nothing.
+            Reads the Metadata information and Data information for data visualization.
+            Instance Function.
+            No Arguments.
+            Returns a Tuple of 2 Dataframes with Metadata information and Data information.
         """
-        # 52 columns
+
         columnsInfo = ['Timestamp',
                     'Station',
                     'District',
@@ -132,7 +155,7 @@ class DataReader():
         info_data =  os.path.join(self.__path_raw_data,self.__graph_info_txt)
         print("Reading Metadata")
         dataframeMetadata = pd.read_csv(info_data,sep = '\t', skiprows=1, header=None, names = columnsMetadata)
-        print("Finished reading Metadata")
+        print("Finished Reading Metadata")
         print("Reading Information")
         nb_days = 0
         dataframeInfo = pd.DataFrame(columns = columnsInfo)
@@ -152,9 +175,10 @@ class DataReader():
 
     def __get_number_of_nodes(self) -> None:
         r"""
-            Instance function.
             Set total number of nodes (nb_days) from Metadata (may contain empty nodes).
-            Returns Nothing.
+            Instance Function.
+            No Arguments.
+            Returns None.
         """
 
         info_data = os.path.join(self.__path_raw_data,self.__graph_info_txt)
@@ -174,9 +198,10 @@ class DataReader():
 
     def __get_good_empty_nodes(self) -> None :
         r"""
-            Instance function.
             Set empty_nodes and good_nodes from Data (may contain data from empty nodes).
-            Returns Nothing.
+            Instance Function.
+            No Arguments.
+            Returns None.
         """
 
         self.__get_number_of_nodes()
@@ -200,12 +225,20 @@ class DataReader():
                         self.empty_nodes = empty_nodes
                         return
 
-    def get_clean_data_by_nodes(self, size : DatasetSize,path_proccessed_data : str) -> Union[list,list]:
+    def get_clean_data_by_nodes(self, size : DatasetSize) -> Tuple[list,list]:
+        r"""
+            Returns data for a specific datasize.
+            Instance Function.
+            Args:
+                size : DatasetSize
+            Returns a tuple of 2 lists with the Data and Labels
+        """
+
         assert len(self.X) > Graph.get_number_nodes_by_size(size)
         new_X = []
         new_Y = []
         nodes_index = 0
-        nodes_ids = Graph.get_nodes_ids_by_size(path_proccessed_data,size)
+        nodes_ids = Graph.get_nodes_ids_by_size(self.__path_proccessed_data,size)
         for index,tuple in enumerate(zip(self.X,self.Y)):
             if int(self.nodes_location[nodes_index][0]) in nodes_ids:
                 new_X.append(tuple[0])
@@ -217,8 +250,9 @@ class DataReader():
 
     def __read_data(self) -> None :
         r"""
-            Instance function.
-            Set data and labes (X and Y) from Data (may contain data from empty nodes).
+            Set data and labels (X and Y) from Data (may contain data from empty nodes).
+            Instance Function.
+            No Arguments.
             Returns Nothing.
         """
 
@@ -243,9 +277,10 @@ class DataReader():
 
     def __read_nodes_data(self) -> None :
         r"""
-            Instance function.
             Set nodes_location from Metadata (may contain data from empty nodes).
-            Returns Nothing.
+            Instance Function.
+            No Arguments.
+            Returns None.
         """
         
         info_data =  os.path.join(self.__path_raw_data,self.__graph_info_txt)
@@ -263,110 +298,97 @@ class DataReader():
                         nodes_location.append([line[0],line[8],line[9]])
         self.nodes_location = nodes_location
 
+    #endregion
+
 class Graph():
     r"""
         Graph class, contains data for graph construction in pytorch.
         For the first time instancing this class all data will be saved in path_processed_data for further use, such that there wont be any redundant processing
 
         Args: 
-            path_processed_data , string : Path where the processed data will be saved
-            epsilon , float : epsilon for weight calculation (see documentation for further information)
-            lamda , integer : lamda for weight calculation (see documentation for further information)
-            size , DatasetSize class : Size of the graph
-            data_reader , DataReader class : Helper class for data reading
+            path_processed_data : str , Path where the processed data will be saved
+            epsilon : float , epsilon for weight calculation (see documentation for further information)
+            sigma : int , sigma for weight calculation (see documentation for further information)
+            size : DatasetSize , Size of the graph
+            data_reader : DataReader , Helper class for data Reading
 
         Static Variables:
-            lamda_array = [0.1, 0.3, 0.5, 0.7] - lamda posibilities
-            epsilon_array = [1, 3, 5, 10] - epsilon posibilities
+            sigma_array : list = [0.1, 0.3, 0.5, 0.7] - sigma possibilities
+            epsilon_array : list = [1, 3, 5, 10] - epsilon possibilities
 
         Variables:
-            __path_processed_data , string : Path where the processed data will be saved - private
-            __epsilon , float : epsilon for weight calculation (see documentation for further information) - private
-            __lamda , integer : lamda for weight calculation (see documentation for further information) - private
-            __size , DatasetSize class : Size of the graph - private
-            __data_reader , DataReader class : Helper class for data reading - private
-            num_nodes , integer : Total number of nodes for the graph per size given - public
-            edge_index , list (2,num_nodes) : list of graph edges for pytorch
-            edge_weight , list (num_nodes) : list of graph weights for pytorch
+            __path_processed_data : str , Path where the processed data will be saved
+            __epsilon : float , epsilon for weight calculation (see documentation for further information)
+            __sigma : integer , sigma for weight calculation (see documentation for further information)
+            __size : DatasetSize class , Size of the graph
+            __data_reader : DataReader class , Helper class for data Reading
+            num_nodes : integer , Total number of nodes for the graph per size given
+            edge_index : list (2,num_nodes) , list of graph edges for pytorch
+            edge_weight : list (num_nodes) , list of graph weights for pytorch
 
         Instance Functions:
-            __check___lamda___epsilon : checks if lamda and epsilon are valid -> None - private
-            __set_nodes : sets nodes array of ids for each size, so the ids will always be the same -> None - private
-            __get_nodes_ids_by_size : returns graph nodes ids based by size -> list - private
-            __process_graph_info : checks if the data required is available, if not it creates it -> None - private
-            __save_graph : save a graph by a configuration -> None - private
-            __set_graph_info : sets the edge_index and edge_weight -> None- private
+            __check_sigma_epsilon(), Checks if sigma and epsilon are valid.
+            __set_nodes(), Sets nodes array of ids for each size, so the ids will always be the same.
+            __process_graph_info(), Checks if the data required is available, if not it creates it.
+            __save_graph(), Save a graph by a configuration.
+            __set_graph_info(), Sets the edge_index, edge_weight and num_nodes.
 
         Class Functions:
-            get_number_nodes_by_size : returns the number of nodes by size -> int: - public
-            __get_adjency_matrix_weight : gets the weight of 2 nodes based on lamda and epsilon (see documentation for further information) -> float : - private
+            need_load(), Checks if Graph information has been proccessed.
+            __get_tuple_to_add_nodes(), Function which retrieves which datasets need nodes to be implemented and saved.
+            __get_tuple_to_add_graph(), Function which retrieves which graphs need preparing to be implemented and saved.
+            get_nodes_ids_by_size(),  Returns graph nodes ids based by size.
+            get_number_nodes_by_size(), Returns the number of nodes by size.
+            __get_adjency_matrix_weight(), Gets the weight of 2 nodes based on sigma and epsilon (see documentation for further information).
     """
+    #region Constructors & Properties
 
     epsilon_array = [0.1, 0.3, 0.5, 0.7]
-    lamda_array = [1, 3, 5, 10]
+    sigma_array = [1, 3, 5, 10]
 
-    def __init__(self,path_processed_data : str, epsilon : float,lamda : int ,size : DatasetSize,data_reader : DataReader) -> None :
+    def __init__(self, epsilon : float, sigma : int ,size : DatasetSize, data_reader : DataReader) -> None :
         r"""
             Constructor, makes the processing and data saving.
 
             Args: 
-                path_processed_data , string : Path where the processed data will be saved
                 epsilon , float : epsilon for weight calculation (see documentation for further information)
-                lamda , integer : lamda for weight calculation (see documentation for further information)
+                sigma , integer : sigma for weight calculation (see documentation for further information)
                 size , DatasetSize class : Size of the graph
-                data_reader , DataReader class : Helper class for data reading
+                data_reader , DataReader class : Helper class for data Reading
         """
-        self.__path_processed_data = path_processed_data
+        self.__path_processed_data = Folders.proccessed_data_path
         self.__epsilon = epsilon
-        self.__lamda = lamda
+        self.__sigma = sigma
         self.__size = size
         self.__data_reader = data_reader
         self.edge_index = []
         self.edge_weight = []
         self.num_nodes = 0
         self.nodes_id_size_array = []
-        self.__check___lamda___epsilon()
+        self.__check_sigma_epsilon()
         self.__set_nodes()
         self.__process_graph_info()
         self.__set_graph_info()
         
+    #endregion
 
-    def __check___lamda___epsilon(self) -> None:
+    #region Instance Functions
+
+    def __check_sigma_epsilon(self) -> None:
         r"""
-            Instance function. 
-            Checks if lamda and epsilon are valid.
+            Checks if sigma and epsilon are valid.
+            Instance function.
+            No Arguments.
             Returns Nothing.
         """
-        assert self.__lamda in self.lamda_array and self.__epsilon in self.epsilon_array
-
-    def need_load(path_processed_data):
-        return len(Graph.__get_tuple_to_add_nodes(path_processed_data)) > 0 and len(Graph.__get_tuple_to_add_graph(path_processed_data)) > 0
-
-    def __get_tuple_to_add_nodes(path_processed_data):
-        sizes_to_add = []
-        for size in DatasetSize:
-            name_nodes = os.path.join(path_processed_data,'nodes_{0}.npy'.format(str(size.name)))
-            if not os.path.isfile(name_nodes):
-                sizes_to_add.append(size)
-        return sizes_to_add
-
-    def __get_tuple_to_add_graph(path_processed_data):
-        list_to_add = []
-
-        for epsilon in Graph.epsilon_array:
-            for lamda in Graph.lamda_array:
-                for size in DatasetSize:
-                    name_weight = os.path.join(path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
-                    name_index = os.path.join(path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
-                    if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
-                        list_to_add.append([epsilon,lamda,size])
-        return list_to_add
+        assert self.__sigma in self.sigma_array and self.__epsilon in self.epsilon_array
 
     def __set_nodes(self) -> None:
         r"""
-            Instance function.
             Sets nodes array of ids for each size, so the ids will always be the same.
-            Returns Nothing.
+            Instance function.
+            No Arguments.
+            Returns None.
         """
         good_nodes = self.__data_reader.good_nodes
         sizes_to_add = Graph.__get_tuple_to_add_nodes(self.__path_processed_data)
@@ -379,35 +401,31 @@ class Graph():
             name_nodes = os.path.join(self.__path_processed_data,'nodes_{0}.npy'.format(str(size.name)))
             np.save(name_nodes,nodes)
 
-    def get_nodes_ids_by_size(path_processed_data : str,size : DatasetSize) -> list:
-        r"""
-            Instance function.
-            Returns graph nodes ids based by size.
-            Returns list.
-        """
-        name_nodes = os.path.join(path_processed_data,'nodes_{0}.npy'.format(str(size.name)))
-        return np.load(name_nodes)
-
     def __process_graph_info(self) -> None:
         r"""
-            Instance function.
             Checks if the data required is available, if not it creates it.
+            Instance function.
+            No Arguments.
             Returns Nothing.
         """
         nodes_location = self.__data_reader.nodes_location
         list_to_add = Graph.__get_tuple_to_add_graph(self.__path_processed_data)
         for info in list_to_add:
             epsilon = info[0]           
-            lamda = info[1]           
+            sigma = info[1]           
             size = info[2]
-            self.__save_graph(nodes_location,epsilon,lamda,size)  
+            self.__save_graph(nodes_location,epsilon,sigma,size)
 
-
-    def __save_graph(self,nodes_location,epsilon,lamda,size : DatasetSize) -> None:
+    def __save_graph(self,nodes_location : list ,epsilon : float ,sigma : int ,size : DatasetSize) -> None:
         r"""
-            Instance function.
             Save a graph by a configuration.
-            Returns Nothing.
+            Instance function.
+            Args:
+                nodes_location : list, list of geographic location for each node
+                epsilon : float, epsilon from the epsilon array for which to save
+                sigma : int, sigma from sigma array for which to save
+                size : DatasetSize, Dataset size for which to save
+            Returns None.
         """
 
         nodes = Graph.get_nodes_ids_by_size(self.__path_processed_data,size)
@@ -415,13 +433,13 @@ class Graph():
         edge_weight = []
         nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
         self.num_nodes = len(nodes_location)
-        print("Saving graph with configuration : epsilon = {0}, lamda = {1}, size = {2}".format(str(epsilon),str(lamda),str(size.name)))
+        print("Saving graph with configuration : epsilon = {0}, sigma = {1}, size = {2}".format(str(epsilon),str(sigma),str(size.name)))
         for i in range(len(nodes_location) - 1):
             for j in range(i,len(nodes_location) - 1):
                 if i != j:
                     p1 = (nodes_location[i][1],nodes_location[i][2])
                     p2 = (nodes_location[j][1],nodes_location[j][2])
-                    weight = Graph.__get_adjency_matrix_weight(p1,p2,epsilon,lamda)
+                    weight = Graph.__get_adjency_matrix_weight(p1,p2,epsilon,sigma)
                     if weight > 0:
                         edge_index.append([i,j])
                         edge_weight.append(weight)
@@ -435,28 +453,85 @@ class Graph():
         if not os.path.exists(name_folder_index):
             os.makedirs(name_folder_index)
         
-        name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
-        name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(lamda),str(size.name)))
+        name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+        name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
         np.save(name_index,edge_index)
         np.save(name_weight,edge_weight)
 
     def __set_graph_info(self) -> None:
         r"""
-            Instance function.
             Sets the edge_index, edge_weight and num_nodes.
+            Instance function.
+            No Arguments.
             Returns Nothing.
         """
-        name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size.name)))
+        name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__sigma),str(self.__size.name)))
         self.edge_weight = np.load(name_weight)
 
-        name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__lamda),str(self.__size.name)))
+        name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__sigma),str(self.__size.name)))
         self.edge_index = np.load(name_index)
+
+    #endregion
+
+    #region Class Functions
+
+    def need_load() -> bool:
+        r"""
+            Checks if Graph information has been proccessed
+            Class Function.
+            No Arguments.
+            Returns bool.
+        """
+        return len(Graph.__get_tuple_to_add_nodes(Folders.proccessed_data_path)) > 0 and len(Graph.__get_tuple_to_add_graph(Folders.proccessed_data_path)) > 0
+    
+    def __get_tuple_to_add_nodes() -> list:
+        r"""
+            Function which retrieves which datasets need nodes to be implemented and saved.
+            Class Function.
+            No Arguments.
+            Returns list.
+        """
+        sizes_to_add = []
+        for size in DatasetSize:
+            name_nodes = os.path.join(Folders.proccessed_data_path,'nodes_{0}.npy'.format(str(size.name)))
+            if not os.path.isfile(name_nodes):
+                sizes_to_add.append(size)
+        return sizes_to_add
+
+    def __get_tuple_to_add_graph() -> list:
+        r"""
+            Function which retrieves which graphs need preparing to be implemented and saved.
+            Class Function.
+            No Arguments.
+            Returns list.
+        """
+        list_to_add = []
+
+        for epsilon in Graph.epsilon_array:
+            for sigma in Graph.sigma_array:
+                for size in DatasetSize:
+                    name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+                    name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+                    if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
+                        list_to_add.append([epsilon,sigma,size])
+        return list_to_add
+
+    def get_nodes_ids_by_size(size : DatasetSize) -> list:
+        r"""
+            Instance function.
+            Returns graph nodes ids based by size.
+            Returns list.
+        """
+        name_nodes = os.path.join(Folders.proccessed_data_path,'nodes_{0}.npy'.format(str(size.name)))
+        return np.load(name_nodes)
 
     def get_number_nodes_by_size(size : DatasetSize) -> int:
         r"""
+            Returns the number of nodes by size.
             Class function.
-            Returns the number of nodes by size
-            Returns Integer
+            Args:
+                size : DatasetSize, the dataset size for which to return the number of nodes
+            Returns Integer.
         """
         if size == DatasetSize.Medium:
             return DatasetSizeNumber.Medium.value
@@ -465,15 +540,24 @@ class Graph():
         elif size == DatasetSize.Experimental:
             return DatasetSizeNumber.Experimental.value
 
-    def __get_adjency_matrix_weight(p1,p2,epsilon,lamda) -> float:
+    def __get_adjency_matrix_weight(p1 : tuple,p2 : tuple,epsilon : float ,sigma : int) -> float:
         r"""
-            Class Function
-            Gets the weight of 2 nodes based on lamda and epsilon (see documentation for further information)
-            Returns Float
+            Gets the weight of 2 nodes based on sigma and epsilon (see documentation for further information).
+            Class Function.
+            Args:
+                p1 : tuple, First point which contains the x and y geographical coordinates
+                p2 : tuple, Second point which contains the x and y geographical coordinates
+                epsilon : float, epsilon from epsilon array
+                sigma : int, sigma from epsilon array
+            Returns Float.
         """
         distance = geodesic(p1,p2).km
-        weight = math.exp(-((distance ** 2)/(lamda ** 2)))
+        weight = math.exp(-((distance ** 2)/(sigma ** 2)))
         if weight >= epsilon:
             return weight
         else:
             return 0
+
+    #endregion
+
+    
