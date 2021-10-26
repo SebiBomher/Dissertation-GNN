@@ -1,69 +1,136 @@
-import glob
-from tokenize import Floatnumber
+#region Imports
+
+import pickle
 import numpy as np
 import copy
-from ray.tune.schedulers.async_hyperband import ASHAScheduler
 import torch
 import os
 from ray import tune
 from torch import nn
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
-from Scripts.Utility import Constants, DatasetSize, ModelType, OptimizerType, Folders
+from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, ModelType, OptimizerType, Folders
 from Scripts.Models import CustomModel, STConvModel
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GridSearchCV
-from Scripts.DataProccess import DataReader, DatasetSizeNumber, Graph
+from Scripts.DataProccess import DataReader,  Graph
 from tqdm import tqdm
 from torch.optim import Adam,RMSprop,Adamax,AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from Scripts.DatasetClasses import CustomDataset, LinearRegressionDataset, STConvDataset
-from Scripts.Utility import Constant
-from enum import Enum
-import pickle
+from ray.tune.schedulers.async_hyperband import ASHAScheduler
+
+#endregion
 
 class LossFunction():
+    r"""
+        Loss Function class, contains 5 methods, 4 of which are the actual loss function and one which contains a list of all of them.
+    """
     
-    def Criterions():
+    #region Class Functions
+
+    def Criterions() -> list:
+        r"""
+            Function which returns all loss functions criterions, contains RMSE, MAPE, MAE, MSE
+            Class Function.
+            No Arguments.
+            Returns List.
+        """
         return [LossFunction.RMSE,LossFunction.MAPE,LossFunction.MAE,LossFunction.MSE]
 
-    def RMSE(y_pred,y_true) -> Tensor:
+    def RMSE(y_pred : Tensor,y_true : Tensor) -> Tensor:
+        r"""
+            Root Mean Squared Error Function
+            Args:
+                y_pred : Tensor, Predicted Values
+                y_true : Tensor, True Values
+            Class Function
+            Returns Tensor
+        """
         return torch.sqrt(torch.mean((y_pred-y_true)**2))
         
-    def MAPE(y_pred, y_true) -> Tensor:
+    def MAPE(y_pred : Tensor,y_true : Tensor) -> Tensor:
+        r"""
+            Mean Average Percentage Error
+            Args:
+                y_pred : Tensor, Predicted Values
+                y_true : Tensor, True Values
+            Class Function
+            Returns Tensor
+        """
         return torch.mean(torch.abs((y_true - y_pred) / y_true))
 
-    def MAE(y_pred, y_true) -> Tensor:
+    def MAE(y_pred : Tensor,y_true : Tensor) -> Tensor:
+        r"""
+            Mean Average Error
+            Args:
+                y_pred : Tensor, Predicted Values
+                y_true : Tensor, True Values
+            Class Function
+            Returns Tensor
+        """
         return torch.mean(torch.abs((y_true - y_pred)))
 
-    def MSE(y_true,y_pred) -> Tensor:
-        return torch.mean((y_pred-y_true)**2)
+    def MSE(y_pred : Tensor,y_true : Tensor) -> Tensor:
+        r"""
+            Mean Square Error
+            Args:
+                y_pred : Tensor, Predicted Values
+                y_true : Tensor, True Values
+            Class Function
+            Returns Tensor
+        """
+        return torch.mean((y_true-y_pred)**2)
+    
+    #endregion
 
 class Learn():
+    
+    #region Constructors & Properties
 
-    def __init__(self,param,info,config):
-        self.batch_size = 8
+    def __init__(self,datareader : DataReader,model_type : ModelType):
+        r"""
+            Linear Regression Constructor
+            Args:
+                datareader : DataReader, datareader for Datareading
+                model_type : ModelType, modeltype, which is LinearRegression
+        """
+        self.datareader = datareader
+        self.model_type = model_type
+        self.device = Constants.device
+
+    def __init__(self, param: dict, config: dict):
+        r"""
+            GNN Constructor
+            
+        """
         self.epsilon = config["epsilon"]
-        self.lamda = config["lamda"]
-        self.hidden_channels = 8
+        self.sigma = config["sigma"]
         self.optimizer_type = config["optimizer_type"]
-        self.proccessed_data_path = param["proccessed_data_path"]
-        self.graph_info_txt = param["graph_info_txt"]
         self.train_ratio = param["train_ratio"]
         self.test_ratio = param["test_ratio"]
         self.val_ratio = param["val_ratio"]
-        self.checkpoint_dir = param["checkpoint_dir"]
-        self.checkpoint_LR = param["checkpoint_LR"]
         self.learning_rate = param["learning_rate"]
         self.EarlyStoppingPatience = param["EarlyStoppingPatience"]
         self.nb_epoch = param["nb_epoch"]
         self.nodes_size = param["nodes_size"]
         self.datareader = param["datareader"]
         self.num_features = param["num_features"]
-        self.criterion = info["criterion"]
-        self.model_type = info["model_type"]
+        self.criterion = param["criterion"]
+        self.model_type = param["model_type"]
+        self.device = Constants.device
 
+    #endregion
+
+    #region Instance Functions.
+    
     def __train(self):
+        r"""
+            Training step in the training process
+            Args:
+                epoch
+            Returns a model, the best at validation loss
+        """
         self.model.train()
         best_val_loss = np.inf
         val_model = self.model
@@ -101,14 +168,20 @@ class Learn():
             print("Epoch {0} : Validation loss {1} ; Train loss {2};".format(epoch,val_loss,loss))
         return val_model
             
-    def __val(self,epoch):
+    def __val(self,epoch : int):
+        r"""
+            Validation step in the training process
+            Args:
+                epoch
+            Returns a float, the loss on validation
+        """
         self.model.eval()
         loss = 0
         dataloader = DataLoader(self.validation_dataset,batch_size = 1,shuffle=False,num_workers=0)
         edge_index = self.train_dataset.get_edge_index()
         edge_weight = self.train_dataset.get_edge_weight()
         iter = 0
-        for time, (x,y) in enumerate(dataloader):
+        for _, (x,y) in enumerate(dataloader):
             X = x[0]
             Y = y[0]
             y_hat = self.model(X, edge_index, edge_weight)
@@ -126,14 +199,21 @@ class Learn():
 
         return loss
 
-    def __test(self,best_model):
+    def __test(self,best_model) -> None:
+        r"""
+            Testing the GNN model
+            Args:
+                best_model, the best model from training (evaluated at validation)
+            Instance Function
+            Returns None.
+        """
         best_model.eval()
         loss = 0
         dataloader = DataLoader(self.test_dataset,batch_size = 1,shuffle=False,num_workers=0)
         edge_index = self.train_dataset.get_edge_index()
         edge_weight = self.train_dataset.get_edge_weight()
         iter = 0
-        for time, (x,y) in enumerate(dataloader):
+        for _, (x,y) in enumerate(dataloader):
             X = x[0]
             Y = y[0]
             y_hat = self.model(X, edge_index, edge_weight)
@@ -144,8 +224,13 @@ class Learn():
         loss = loss.item()
         print("Best trial test set loss: {}".format(loss))
 
-    def __LRTrainAndTest(self):
-        
+    def __LRTrainAndTest(self) -> None:
+        r"""
+            Trains and tests Linear Regression
+            No Arguments.
+            Instance Function.
+            Returns None.
+        """
         parameters = {
             'normalize':[True],
         }
@@ -153,7 +238,7 @@ class Learn():
         lr_model = LinearRegression()
         clf = GridSearchCV(lr_model, parameters, refit=True, cv=5)
         all_loss = 0
-        for index, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(self.train_dataset):
+        for _, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(self.train_dataset):
             best_model = clf.fit(X_train,Y_train)
             y_pred = best_model.predict(X_test)
             loss = self.criterion(torch.FloatTensor(Y_test).to(self.train_dataset.device),torch.FloatTensor(y_pred).to(self.train_dataset.device))
@@ -175,57 +260,35 @@ class Learn():
         with open(name_file, 'w') as f:
             f.write(str(all_loss))
 
-    
+    def __train_val_and_test(self) -> None:
+        r"""
+            Trains and tests a model.
+            No Arguments.
+            Instance Function.
+            Returns None.
+        """
+        best_model = self.__train()
+        self.__test(best_model)
 
-    def __train_val_and_test(self):
-        if self.model_type == ModelType.LinearRegression:
-            self.__LRTrainAndTest()
-        else:
-            best_model = self.__train()
-            self.__test(best_model)
-
-    def __set_for_data(self):
-        device = "cpu"
-        self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(
-                                                                                            path_proccessed_data=self.proccessed_data_path,
-                                                                                            train_ratio = self.train_ratio, 
-                                                                                            test_ratio = self.test_ratio, 
-                                                                                            val_ratio = self.val_ratio, 
-                                                                                            batch_size=self.batch_size,
-                                                                                            time_steps=1,
-                                                                                            epsilon=self.epsilon,
-                                                                                            lamda=self.lamda,
-                                                                                            nodes_size=self.nodes_size,
-                                                                                            datareader= self.datareader,
-                                                                                            device= device)
-
-        self.train_dataset, self.validation_dataset, self.test_dataset = CustomDataset.get_dataset_Custom(
-                                                                                            path_proccessed_data=self.proccessed_data_path,
-                                                                                            train_ratio = self.train_ratio, 
-                                                                                            test_ratio = self.test_ratio, 
-                                                                                            val_ratio = self.val_ratio, 
-                                                                                            epsilon=self.epsilon,
-                                                                                            lamda=self.lamda,
-                                                                                            nodes_size=self.nodes_size,
-                                                                                            datareader= self.datareader,
-                                                                                            device= device)
-        self.train_dataset = LinearRegressionDataset(self.proccessed_data_path,self.datareader,device)
-
-    def __set_for_train(self):
-        device = "cpu"
+    def __set_for_train(self) -> None:
+        r"""
+            Function to set data for training.
+            Instance Function.
+            No Arguments.
+            Returns None.
+        """
+        
         if self.model_type == ModelType.STCONV:
             self.train_dataset, self.validation_dataset, self.test_dataset = STConvDataset.get_dataset_STCONV(
-                                                                                            path_proccessed_data=self.proccessed_data_path,
                                                                                             train_ratio = self.train_ratio, 
                                                                                             test_ratio = self.test_ratio, 
                                                                                             val_ratio = self.val_ratio, 
-                                                                                            batch_size=self.batch_size,
                                                                                             time_steps=1,
                                                                                             epsilon=self.epsilon,
-                                                                                            lamda=self.lamda,
+                                                                                            sigma=self.sigma,
                                                                                             nodes_size=self.nodes_size,
                                                                                             datareader= self.datareader,
-                                                                                            device= device)
+                                                                                            device= self.device)
             
             self.model = STConvModel(node_features = self.num_features,
                                 num_nodes = Graph.get_number_nodes_by_size(self.nodes_size),
@@ -234,23 +297,21 @@ class Learn():
                                 K = 1)
         elif self.model_type == ModelType.Custom:
             self.train_dataset, self.validation_dataset, self.test_dataset = CustomDataset.get_dataset_Custom(
-                                                                                            path_proccessed_data=self.proccessed_data_path,
                                                                                             train_ratio = self.train_ratio, 
                                                                                             test_ratio = self.test_ratio, 
                                                                                             val_ratio = self.val_ratio, 
                                                                                             epsilon=self.epsilon,
-                                                                                            lamda=self.lamda,
+                                                                                            sigma=self.sigma,
                                                                                             nodes_size=self.nodes_size,
                                                                                             datareader= self.datareader,
-                                                                                            device= device)
+                                                                                            device= self.device)
             self.model = CustomModel(node_features = self.num_features, K = 3)
 
         elif self.model_type == ModelType.LinearRegression:
-            self.train_dataset = LinearRegressionDataset(self.proccessed_data_path,self.datareader,device)
+            self.train_dataset = LinearRegressionDataset(self.datareader)
+            return
 
-        if self.model_type == ModelType.LinearRegression : return
-
-        self.model.to(device)
+        self.model.to(self.device)
 
         if self.optimizer_type == OptimizerType.Adam:
             self.optimizer = Adam(self.model.parameters(), lr=self.learning_rate)
@@ -269,37 +330,71 @@ class Learn():
             self.model.load_state_dict(model_state)
             self.optimizer.load_state_dict(optimizer_state)
 
-    def set_data(
-            proccessed_data_path : str,
-            datareader : DataReader,
-            device : str):
+    #endregion
+    
+    #region Class Functions
+
+    def set_data(datareader : DataReader) -> None:
         r"""
             Function to call to make all prerequireing data processing such that everything is done before training starts.
+            Args:
+                datareader : DataReader, datareader for data reading
+            Class Function.
+            Returns None.
         """
-        STConvDataset.__save_dataset(proccessed_data_path,datareader,device)
-        CustomDataset.__save_dataset(proccessed_data_path,datareader,device)
-        LinearRegressionDataset.__save_dataset(proccessed_data_path,datareader,device)
-        
-    def __startCUSTOM(config, param):
+        STConvDataset.__save_dataset(datareader)
+        CustomDataset.__save_dataset(datareader)
+        LinearRegressionDataset.__save_dataset(datareader)
+
+    def __startCUSTOM(config, param) -> None:
+        r"""
+            Function to start training Custom
+            Class Function
+            Args:
+                param : dict, contains learning_rate, num_features, EarlyStoppingPatience, nb_epoch, datareader, nodes_size, train_ratio, val_ratio, test_ratio, criterion, model_type
+                config : dict, contains K, epsilon, optimizer_type, sigma
+            Returns None
+        """
         learn = Learn(param,config)
         learn.__set_for_train()
         learn.__train_val_and_test()
 
-    def __startSTCONV(config, param):
+    def __startSTCONV(config, param) -> None:
+        r"""
+            Function to start training STCONV
+            Class Function
+            Args:
+                param : dict, contains learning_rate, num_features, EarlyStoppingPatience, nb_epoch, datareader, nodes_size, train_ratio, val_ratio, test_ratio, criterion, model_type
+                config : dict, contains K, epsilon, optimizer_type, sigma
+            Returns None
+        """
         learn = Learn(param,config)
         learn.__set_for_train()
         learn.__train_val_and_test()
 
-    def startLR(param : dict):
-        learn = Learn(param)
+    def startLR(datareader : DataReader) -> None:
+        r"""
+            Function to start training Linear Regression
+            Class Function.
+            Args:
+                datareader : DataReader, datareader for data reading
+            Returns None.
+        """
+        learn = Learn(datareader = datareader, model_type = ModelType.LinearRegression)
         learn.__set_for_train()
-        learn.__train_val_and_test()
-
+        learn.__LRTrainAndTest()
 
     def HyperParameterTuning(datasetsize : DatasetSize, model : ModelType, datareader : DataReader, criterion : staticmethod) -> None:
         r"""
-            Function for hyper parameter tuning, it receives a datasetsize, model type, data reader and a loss function as a criterion, returns nothing
-            Creates parameters for the function for the hyper parameter tuning
+            Function for hyper parameter tuning, it receives a datasetsize, model type, data reader and a loss function as a criterion, returns nothing.
+            Creates parameters for the function for the hyper parameter tuning.
+            Args:
+                datasetsize : DatasetSize, datasetsize for which to tune
+                model : ModelType, model for which to tune
+                datareader : DataReader, datareader class for data reading
+                criterion : staticmethod, loss function criterion
+            Class Function.
+            Returns None.
         """
         if ModelType == ModelType.Custom:
             learnMethod = Learn.__startCUSTOM
@@ -315,16 +410,12 @@ class Learn():
             "learning_rate" : Constants.learning_rate,
             "num_features" : Constants.num_features,
             "EarlyStoppingPatience" : Constants.EarlyStoppingPatience,
-            "path_data" : Folders.path_data,
-            "proccessed_data_path" : Folders.proccessed_data_path,
-            "graph_info_txt" : Folders.graph_info_path,
             "nb_epoch" : Constants.nb_epoch,
             "datareader" : datareader,
             "nodes_size" : datasetsize,
             "train_ratio" : Constants.train_ratio,
             "val_ratio" : Constants.val_ratio,
             "test_ratio" : Constants.test_ratio,
-            "checkpoint_LR" : Folders.checkpoint_LR_path,
             "criterion" : criterion,
             "model_type" : model
         }
@@ -334,7 +425,7 @@ class Learn():
             "K" : tune.choice([1,3,5,7]),
             "epsilon" : tune.choice([0.1, 0.3, 0.5, 0.7]),
             "optimizer_type" : tune.choice([OptimizerType.Adam,OptimizerType.AdamW,OptimizerType.Adamax,OptimizerType.RMSprop]),
-            "lamda" : tune.choice([1, 3, 5, 10])
+            "sigma" : tune.choice([1, 3, 5, 10])
         }
 
         result = tune.run(
@@ -351,3 +442,7 @@ class Learn():
 
         print("Best trial config: {}".format(best_trial.config))
         print("Best trial for {} model final validation loss: {}".format(model.name,best_trial.last_result["loss"]))
+
+    #endregion
+
+    

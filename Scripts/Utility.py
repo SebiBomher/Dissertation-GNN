@@ -11,6 +11,8 @@ class Constants():
     learning_rate : float = 0.01
     EarlyStoppingPatience : int = 10
     nb_epoch : int = 300
+    batch_size = 8
+    hidden_channels = 8
     
     #Hyper Parameter Tuning Parameters
     num_samples : int = 16

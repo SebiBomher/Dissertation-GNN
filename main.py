@@ -1,6 +1,12 @@
 from Scripts.DataProccess import DataReader
+from Scripts.DataVisualization import DataViz
+#region Imports
+
 from Scripts.Utility import Constants, DatasetSize, Folders, ModelType
 from Scripts.Learn import Learn, LossFunction
+from Scripts.TestLog import TestLog
+
+#endregion
 
 if __name__ == '__main__':
 
@@ -16,11 +22,13 @@ if __name__ == '__main__':
         proccessed_data_path = Folders.proccessed_data_path,
         graph_info_txt = Folders.graph_info_path,
         datareader = datareader,
-        checkpoint_LR = Folders.checkpoint_LR_path
-    )
+        checkpoint_LR = Folders.checkpoint_LR_path)
 
     for datasize in DatasetSize:
         for model in ModelType:
             for criterion in LossFunction.Criterions():
                 if model != ModelType.LinearRegression:
                     Learn.HyperParameterTuning(datasetsize = datasize, model = model, datareader = datareader, criterion = criterion)
+
+    TestLog.Run()
+    DataViz.Run()

@@ -1,17 +1,18 @@
+import pandas as pd
+import torch
+import glob
+import os
+import pickle
+import json
 from torch.utils.data.dataloader import DataLoader
 from Scripts.Models import CustomModel, STConvModel
 from torch_geometric.data.data import Data
 from Scripts.Learn import LossFunction
-import pandas as pd
-import torch
-from Scripts.DataProccess import DataReader, DatasetSize, Graph, DatasetSizeNumber
+from Scripts.DataProccess import DataReader, DatasetSize, Graph
 from Scripts.DatasetClasses import CustomDataset, LinearRegressionDataset, STConvDataset
-import glob
-import os
-import pickle
 from pathlib import Path
 from torch.optim import Adam, RMSprop, Adamax, AdamW
-import json
+from Scripts.Utility import Folders
 
 
 class TestLog():
@@ -79,7 +80,7 @@ class TestLog():
     def __test_and_log_STCONV(self) -> None:
         #TODO
         dfResults = pd.DataFrame(
-            columns=["Epsilon", "Lamda", "Size", "Criterion", "Loss", "OptimizerType", "Checkpoint","Trial"])
+            columns=["Epsilon", "sigma", "Size", "Criterion", "Loss", "OptimizerType", "Checkpoint","Trial"])
         for node_size in DatasetSize:
             if node_size == DatasetSize.Experimental:
                 continue
@@ -93,7 +94,7 @@ class TestLog():
                     with open(params_json, "r") as json_file:
                         data = json.load(json_file)
                         epsilon = (float)(data["epsilon"])
-                        lamda = (int)(data["lamda"])
+                        sigma = (int)(data["sigma"])
                         optimizer_type = (data["optimizer_type"])
                     _, _, test_dataset_STCONV = STConvDataset.get_dataset_STCONV(
                         path_proccessed_data=self.proccessed_data_path,
@@ -103,7 +104,7 @@ class TestLog():
                         batch_size=self.batch_size,
                         time_steps=1,
                         epsilon=epsilon,
-                        lamda=lamda,
+                        sigma=sigma,
                         nodes_size=node_size,
                         datareader=self.datareader,
                         device=self.device)
@@ -138,7 +139,7 @@ class TestLog():
                         for criterion in LossFunction.Criterions():
                             loss = self.__test(model, criterion, test_dataset_STCONV)
                             results = {"Epsilon": str(epsilon),
-                                       "Lamda": str(lamda),
+                                       "sigma": str(sigma),
                                        "Size": str(node_size.name),
                                        "Criterion": str(criterion.__name__),
                                        "Loss": str(loss),
@@ -161,7 +162,7 @@ class TestLog():
     def __test_and_log_CUSTOM(self) -> None:
         # TODO
         dfResults = pd.DataFrame(
-            columns=["Epsilon", "Lamda", "Size", "Criterion", "Loss", "OptimizerType", "Checkpoint","Trial"])
+            columns=["Epsilon", "sigma", "Size", "Criterion", "Loss", "OptimizerType", "Checkpoint","Trial"])
         for node_size in DatasetSize:
             folders_results = os.path.join(
                 self.results_ray, "CUSTOM_{0}".format(str(node_size.name)), "*")
@@ -173,7 +174,7 @@ class TestLog():
                     with open(params_json, "r") as json_file:
                         data = json.load(json_file)
                         epsilon = (float)(data["epsilon"])
-                        lamda = (int)(data["lamda"])
+                        sigma = (int)(data["sigma"])
                         optimizer_type = (data["optimizer_type"])
 
                     _, _, test_dataset_CUSTOM = CustomDataset.get_dataset_Custom(
@@ -182,7 +183,7 @@ class TestLog():
                         test_ratio=self.test_ratio,
                         val_ratio=self.val_ratio,
                         epsilon=epsilon,
-                        lamda=lamda,
+                        sigma=sigma,
                         nodes_size=node_size,
                         datareader=self.datareader,
                         device=self.device)
@@ -215,7 +216,7 @@ class TestLog():
                         for criterion in LossFunction.Criterions():
                             loss = self.__test(model, criterion,test_dataset_CUSTOM)
                             results = {"Epsilon": str(epsilon),
-                                       "Lamda": str(lamda),
+                                       "sigma": str(sigma),
                                        "Size": str(node_size.name),
                                        "Criterion": str(criterion.__name__),
                                        "Loss": str(loss),
@@ -254,17 +255,9 @@ class TestLog():
         if not os.path.exists(self.results_folder):
             os.makedirs(self.results_folder)
         self.__test_and_log_LR()
-        # self.__test_and_log_STCONV()
-        # self.__test_and_log_CUSTOM()
+        self.__test_and_log_STCONV()
+        self.__test_and_log_CUSTOM()
 
-
-if __name__ == '__main__':
-    path_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Data"
-    path_processed_data = "D:\\FacultateMasterAI\\Dissertation-GNN\\Proccessed"
-    checkpoint_LR = "D:\\FacultateMasterAI\\Dissertation-GNN\\Checkpoint_LR"
-    results_folder = "D:\\FacultateMasterAI\\Dissertation-GNN\\Results"
-    results_ray = "D:\\FacultateMasterAI\\Results-RAY"
-    graph_info_txt = "d07_text_meta_2021_03_27.txt"
-    datareader = DataReader(path_data, graph_info_txt)
-    TestLog(datareader, path_processed_data,
-            checkpoint_LR, results_ray, results_folder)
+    def Run():
+        datareader = DataReader(Folders.path_data, Folders.graph_info_path)
+        TestLog(datareader, Folders.proccessed_data_path,Folders.checkpoint_LR_path, Folders.results_ray_path, Folders.results_path)

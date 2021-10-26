@@ -1,3 +1,5 @@
+#region Imports
+
 import math
 import os
 import torch
@@ -6,20 +8,19 @@ import glob
 from torch_geometric.data import Data
 from Scripts.DataProccess import DataReader,Graph
 from Scripts.Models import STConvModel
-from Scripts.Utility import DatasetSize, DatasetSizeNumber
+from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
 
+#endregion
+
 class DatasetClass(object):
     r"""
-    
+        Helping class so there is no need to implement the same variables in the constructors and the graph set and get
     """
-    batch_sizes_array= [8,16,32]
 
     def __init__(self,
-                proccessed_data_path : str,
-                batch_size : int,
-                lamda : int,
+                sigma : int,
                 epsilon : float,
                 size : DatasetSize,
                 datareader : DataReader,
@@ -29,24 +30,19 @@ class DatasetClass(object):
         r"""
     
         """
-        self.proccessed_data_path = proccessed_data_path
-        self.batch_size = batch_size
-        self.lamda = lamda
+        self.proccessed_data_path = Folders.proccessed_data_path
+        self.batch_size = Constants.batch_size
+        self.sigma = sigma
         self.epsilon = epsilon
         self.time_start = time_start
         self.time_stop = time_stop
         self.data_reader = datareader
         self.size = size
         self.device = device
-        self.__check_batchsize()
         self.__set_graph()
 
-    
-    def __check_batchsize(self):
-        assert self.batch_size in self.batch_sizes_array
-
     def __set_graph(self):
-        self.graph = Graph(self.proccessed_data_path,self.epsilon,self.lamda,self.size,self.data_reader)
+        self.graph = Graph(self.proccessed_data_path,self.epsilon,self.sigma,self.size,self.data_reader)
 
     def get_edge_index(self):
         if self.graph.edge_index is None:
@@ -60,19 +56,16 @@ class DatasetClass(object):
         else:
             return torch.FloatTensor(self.graph.edge_weight).to(self.device)
 
-
 class LinearRegressionDataset():
     def __init__(self,
-                proccessed_data_path : str,
-                datareader : DataReader,
-                device : str = 'cpu'):
-        self.proccessed_data_path = proccessed_data_path
+                datareader : DataReader):
+        self.proccessed_data_path = Folders.proccessed_data_path
         self.proccessed_data_path_model = os.path.join(self.proccessed_data_path,"LinearRegression")
         self.datareader = datareader
-        self.device = device
+        self.device = Constants.device
         self.__save_dataset()
 
-    def __arrange_data(self,data,num_nodes):
+    def __arrange_data(data,num_nodes):
         New_Data = []
         for i in range(num_nodes):
             Data = []
@@ -82,18 +75,19 @@ class LinearRegressionDataset():
         return New_Data
 
         
-    def __save_dataset(self):
-        if not LinearRegressionDataset.need_load(self.proccessed_data_path) : return
-        X,Y = self.datareader.get_clean_data_by_nodes(DatasetSize.Medium,self.proccessed_data_path)
+    def __save_dataset(datareader):
+        if not LinearRegressionDataset.need_load(Folders.proccessed_data_path) : return
+        proccessed_data_path_model = os.path.join(Folders.proccessed_data_path,"LinearRegression")
+        X,Y = datareader.get_clean_data_by_nodes(DatasetSize.Medium,Folders.proccessed_data_path)
 
-        X = self.__arrange_data(X,DatasetSizeNumber.Medium.value)
-        Y = self.__arrange_data(Y,DatasetSizeNumber.Medium.value) 
+        X = LinearRegressionDataset.__arrange_data(X,DatasetSizeNumber.Medium.value)
+        Y = LinearRegressionDataset.__arrange_data(Y,DatasetSizeNumber.Medium.value) 
         
-        nodes_ids = Graph.get_nodes_ids_by_size(self.proccessed_data_path,DatasetSize.Medium)
-        if not os.path.exists(self.proccessed_data_path_model):
-            os.makedirs(self.proccessed_data_path_model)
+        nodes_ids = Graph.get_nodes_ids_by_size(Folders.proccessed_data_path,DatasetSize.Medium)
+        if not os.path.exists(proccessed_data_path_model):
+            os.makedirs(proccessed_data_path_model)
 
-        name_folder = os.path.join(self.proccessed_data_path_model,'Data')
+        name_folder = os.path.join(proccessed_data_path_model,'Data')
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
 
@@ -110,7 +104,6 @@ class LinearRegressionDataset():
 
     def need_load(proccessed_data_path):
         return not os.path.exists(os.path.join(os.path.join(proccessed_data_path,"LinearRegression"),'Data'))
-
 
     def __getitem__(self, time_index: int):
         name_x = os.path.join(self.proccessed_data_path_model,"Data",'X_{0}*.npy'.format(str(time_index))) 
@@ -148,12 +141,10 @@ class LinearRegressionDataset():
         _, X_test, _, Y_test = train_test_split(X, Y, test_size=0.2,shuffle = False)
         return  X_test, Y_test
 
-        # -=0oklo
 class CustomDataset(DatasetClass):
     
     def __init__(self,
-                proccessed_data_path : str,
-                lamda : int,
+                sigma : int,
                 epsilon : float,
                 size : DatasetSize,
                 datareader : DataReader,
@@ -161,7 +152,7 @@ class CustomDataset(DatasetClass):
                 time_start : int = 0 ,
                 time_stop : float = -1):
 
-        super().__init__(proccessed_data_path,8,lamda,epsilon,size,datareader,device,time_start,time_stop)
+        super().__init__(sigma,epsilon,size,datareader,device,time_start,time_stop)
         self.proccessed_data_path_model = os.path.join(self.proccessed_data_path,"Custom")
         self.transform = transforms.Compose([transforms.ToTensor()])
         self.__save_dataset()
@@ -174,8 +165,8 @@ class CustomDataset(DatasetClass):
     def need_load(proccessed_data_path):
         return len(CustomDataset.__get_tuple_to_add(os.path.join(proccessed_data_path,"Custom"))) > 0
 
-    def get_dataset_Custom(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader,device : str):
-        DataTraffic = CustomDataset(path_proccessed_data,lamda,epsilon,nodes_size,datareader,device)
+    def get_dataset_Custom(train_ratio : float, test_ratio : float, val_ratio : float, epsilon : float,sigma : int,nodes_size : DatasetSize,datareader : DataReader,device : str):
+        DataTraffic = CustomDataset(sigma,epsilon,nodes_size,datareader,device)
         train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
 
@@ -188,7 +179,7 @@ class CustomDataset(DatasetClass):
         time_test = time_train + int(test_ratio*self.snapshot_count)
 
         train_iterator = CustomDataset(self.proccessed_data_path,
-                                                    self.lamda,
+                                                    self.sigma,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
@@ -197,7 +188,7 @@ class CustomDataset(DatasetClass):
                                                     time_train + 1)
 
         test_iterator = CustomDataset(self.proccessed_data_path,
-                                                    self.lamda,
+                                                    self.sigma,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
@@ -206,7 +197,7 @@ class CustomDataset(DatasetClass):
                                                     time_test)
 
         val_iterator = CustomDataset(self.proccessed_data_path,
-                                                    self.lamda,
+                                                    self.sigma,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
@@ -256,8 +247,8 @@ class CustomDataset(DatasetClass):
                 to_create.append([size])
         return to_create
     
-    def __save_dataset(proccessed_data_path,data_reader):
-        proccessed_data_path_model = os.path.join(proccessed_data_path,"Custom")
+    def __save_dataset(data_reader):
+        proccessed_data_path_model = os.path.join(Folders.proccessed_data_path,"Custom")
         to_create = CustomDataset.__get_tuple_to_add(proccessed_data_path_model)
         for tuple in to_create:
             size = tuple[0]
@@ -304,16 +295,13 @@ class CustomDataset(DatasetClass):
     def __len__(self):
         return self.snapshot_count
 
-
 class STConvDataset(DatasetClass):
     
     time_steps_array= [1]
 
     def __init__(self,
-                proccessed_data_path : str,
                 time_steps : int,
-                batch_size : int,
-                lamda : int,
+                sigma : int,
                 epsilon : float,
                 size : DatasetSize,
                 datareader : DataReader,
@@ -321,7 +309,7 @@ class STConvDataset(DatasetClass):
                 time_start : int = 0 ,
                 time_stop : float = -1):
 
-        super().__init__(proccessed_data_path,batch_size,lamda,epsilon,size,datareader,device,time_start,time_stop)
+        super().__init__(sigma,epsilon,size,datareader,device,time_start,time_stop)
         self.proccessed_data_path_STCONV = os.path.join(self.proccessed_data_path,"STCONV")
         self.time_steps = time_steps
         self.__check_timesteps()
@@ -335,8 +323,8 @@ class STConvDataset(DatasetClass):
     def need_load(proccessed_data_path):
         return len(STConvDataset.__get_tuple_to_add(os.path.join(proccessed_data_path,"STCONV"))) > 0
 
-    def get_dataset_STCONV(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,time_steps : int,epsilon : float,lamda : int,nodes_size : DatasetSize,datareader : DataReader,device : str):
-        DataTraffic = STConvDataset(path_proccessed_data,time_steps,batch_size,lamda,epsilon,nodes_size,datareader,device)
+    def get_dataset_STCONV(path_proccessed_data : str, train_ratio : float, test_ratio : float, val_ratio : float, batch_size : int,time_steps : int,epsilon : float,sigma : int,nodes_size : DatasetSize,datareader : DataReader,device : str):
+        DataTraffic = STConvDataset(path_proccessed_data,time_steps,batch_size,sigma,epsilon,nodes_size,datareader,device)
         train,test,val = DataTraffic.__split_dataset(train_ratio=train_ratio,test_ratio = test_ratio,val_ratio = val_ratio)
         return train,val,test
 
@@ -354,7 +342,7 @@ class STConvDataset(DatasetClass):
         train_iterator = STConvDataset(self.proccessed_data_path,
                                                     self.time_steps,
                                                     self.batch_size,
-                                                    self.lamda,
+                                                    self.sigma,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
@@ -365,7 +353,7 @@ class STConvDataset(DatasetClass):
         test_iterator = STConvDataset(self.proccessed_data_path,
                                                     self.time_steps,
                                                     self.batch_size,
-                                                    self.lamda,
+                                                    self.sigma,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
@@ -376,7 +364,7 @@ class STConvDataset(DatasetClass):
         val_iterator = STConvDataset(self.proccessed_data_path,
                                                     self.time_steps,
                                                     self.batch_size,
-                                                    self.lamda,
+                                                    self.sigma,
                                                     self.epsilon,
                                                     self.size,
                                                     self.data_reader,
@@ -448,8 +436,8 @@ class STConvDataset(DatasetClass):
                         to_create.append([time_step,batch_size,size])
         return to_create
     
-    def __save_dataset(proccessed_data_path,data_reader):
-        proccessed_data_path_STCONV = os.path.join(proccessed_data_path,"STCONV")
+    def __save_dataset(data_reader):
+        proccessed_data_path_STCONV = os.path.join(Folders.proccessed_data_path,"STCONV")
         to_create = STConvDataset.__get_tuple_to_add(proccessed_data_path_STCONV)
         for tuple in to_create:
             time_step = tuple[0]
