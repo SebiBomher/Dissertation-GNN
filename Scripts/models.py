@@ -3,6 +3,7 @@ from torch_geometric_temporal.nn.attention.stgcn import STConv
 from torch_geometric_temporal.nn.recurrent import GCLSTM
 from torch_geometric.nn import GCNConv
 from torch.nn import ReLU,Linear,Module,MaxPool1d,BatchNorm1d,Dropout
+from sklearn.linear_model import LinearRegression
 
 class STConvModel(Module):
     def __init__(self, node_features,num_nodes,hidden_channels,kernel_size,K):
@@ -18,8 +19,6 @@ class STConvModel(Module):
         x = self.ReLU(x)
         x = self.STCONV(x, edge_index, edge_weight)
         x = self.ReLU(x)
-        # x = self.STCONV(x, edge_index, edge_weight)
-        # x = self.ReLU(x)
         x = self.linear(x)
         return x
 
@@ -49,24 +48,9 @@ class CustomModel(Module):
         x = self.ReLU(x)
         x = self.BatchNorm1(x)
         x = self.Dropout(x)
-        # x = self.GCLSTM2(x, edge_index, edge_weight)
-        # x = self.Conv2(x[0], edge_index)
-        # x = self.ReLU(x)
-        # x = self.BatchNorm2(x)
-        # x = self.Dropout(x)
-        # x = self.GCLSTM3(x, edge_index, edge_weight)
-        # x = self.Conv3(x[0], edge_index)
-        # x = self.ReLU(x)
-        # x = self.BatchNorm3(x)
-        # x = self.Dropout(x)
-        # x = self.GCLSTM4(x, edge_index, edge_weight)
-        # x = self.Conv4(x[0], edge_index)
-        # x = self.ReLU(x)
-        # x = self.BatchNorm4(x)
-        # x = self.Dropout(x)
         x = self.linear(x)
         return x
 
 class LinearRegression():
     def __init__(self):
-        self.t = 1
+        self.model = LinearRegression()
