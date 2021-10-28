@@ -76,7 +76,7 @@ class DataReader():
         """
 
         dfLR = pd.read_csv(os.path.join(self.__results_path,"LinearRegression.csv"))
-        columnsInfo = ["Epsilon","Sigma","Size","Criterion","Loss","OptimizerType","Checkpoint","Trial"]
+        columnsInfo = ["Model","Epsilon","Sigma","Size","Criterion","Loss","OptimizerType","TestOrVal","Trial"]
 
         STCONVFile = os.path.join(self.__results_path,"STCONV.csv")
         if not(os.path.exists(STCONVFile)):
