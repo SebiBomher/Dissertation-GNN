@@ -86,6 +86,7 @@ class LossFunction():
 
     #endregion
 
+
 class Learn():
 
     #region Constructors & Properties
@@ -125,14 +126,14 @@ class Learn():
 
     #region Instance Functions.
 
-    def __train(self,dfResults : pd.DataFrame):
+    def __train(self, dfResults: pd.DataFrame):
         r"""
             Training step in the training process
             Args:
                 dfResults : pd.DataFrame, For results writing
             Returns a model, the best at validation loss
         """
-        
+
         self.model.train()
         best_val_loss = np.inf
         val_model = self.model
@@ -152,7 +153,7 @@ class Learn():
                 iter += 1
 
             # Validation Step at epoch end
-            val_loss = self.__val(epoch,dfResults)
+            val_loss = self.__val(epoch, dfResults)
             if val_loss < best_val_loss:
                 val_model = copy.deepcopy(self.model)
                 best_val_loss = val_loss
@@ -172,7 +173,7 @@ class Learn():
                 epoch, val_loss, loss))
         return val_model
 
-    def __val(self, epoch: int,dfResults : pd.DataFrame):
+    def __val(self, epoch: int, dfResults: pd.DataFrame):
         r"""
             Validation step in the training process
             Args:
@@ -203,7 +204,7 @@ class Learn():
                            "Criterion": str(criterion.__name__),
                            "Loss": str(loss),
                            "OptimizerType": self.optimizer_type,
-                           "TestOrVal" : "Validation",
+                           "TestOrVal": "Validation",
                            "Trial": tune.get_trial_id()
                            }
                 dfResults = dfResults.append(
@@ -223,7 +224,7 @@ class Learn():
 
         return loss
 
-    def __test(self, best_model, dfResults : pd.DataFrame) -> None:
+    def __test(self, best_model, dfResults: pd.DataFrame) -> None:
         r"""
             Testing the GNN model
             Args:
@@ -256,7 +257,7 @@ class Learn():
                            "Criterion": str(criterion.__name__),
                            "Loss": str(loss),
                            "OptimizerType": self.optimizer_type,
-                           "TestOrVal" : "Test",
+                           "TestOrVal": "Test",
                            "Trial": tune.get_trial_id()
                            }
                 dfResults = dfResults.append(
@@ -317,11 +318,11 @@ class Learn():
             Returns None.
         """
         dfResults = pd.DataFrame(
-            columns=["Model", "Epsilon", "Sigma", "Size", "Criterion", "Loss", "OptimizerType", "Trial" ,"TestOrVal"])
+            columns=["Model", "Epsilon", "Sigma", "Size", "Criterion", "Loss", "OptimizerType", "Trial", "TestOrVal"])
         best_model = self.__train(dfResults)
         self.__test(best_model, dfResults)
         file_save = os.path.join(
-            Constants.results_folder, "{0}_{1}_{2}.csv".format(self.model_type.name,str(self.nodes_size.name), tune.get_trial_id()))
+            Constants.results_folder, "{0}_{1}_{2}.csv".format(self.model_type.name, str(self.nodes_size.name), tune.get_trial_id()))
         dfResults.to_csv(path_or_buf=file_save, index=False)
 
     def __set_for_train(self) -> None:

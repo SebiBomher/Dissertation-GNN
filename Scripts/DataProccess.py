@@ -57,7 +57,12 @@ class DataReader():
         self.Y = []
         self.nodes_location = []
         self.nb_days = 0
-
+        if (not os.path.isdir(os.path.join(self.__path_proccessed_data,"STCONV")) or 
+        not os.path.isdir(os.path.join(self.__path_proccessed_data,"Custom")) or 
+        not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeWeight")) or
+        not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeIndex"))):
+            self.start()
+            Graph(epsilon=0.1,sigma=3,size=DatasetSize.Medium,data_reader=self)
     #endregion
     
     #region Instance Functions
@@ -238,7 +243,7 @@ class DataReader():
         new_X = []
         new_Y = []
         nodes_index = 0
-        nodes_ids = Graph.get_nodes_ids_by_size(self.__path_proccessed_data,size)
+        nodes_ids = Graph.get_nodes_ids_by_size(size)
         for index,tuple in enumerate(zip(self.X,self.Y)):
             if int(self.nodes_location[nodes_index][0]) in nodes_ids:
                 new_X.append(tuple[0])
@@ -271,6 +276,8 @@ class DataReader():
                         Y.append((float)(line[11]))
                         X.append([(float)(line[9]),(float)(line[10])])
             nb_days += 1
+            if nb_days == 5:
+                break
         self.X = normalize(np.array(X))
         self.Y = Y
         self.nb_days = nb_days
@@ -391,7 +398,7 @@ class Graph():
             Returns None.
         """
         good_nodes = self.__data_reader.good_nodes
-        sizes_to_add = Graph.__get_tuple_to_add_nodes(self.__path_processed_data)
+        sizes_to_add = Graph.__get_tuple_to_add_nodes()
         for size in sizes_to_add:
             if size != DatasetSize.Experimental:
                 number_of_nodes =  Graph.get_number_nodes_by_size(size)
@@ -409,7 +416,7 @@ class Graph():
             Returns Nothing.
         """
         nodes_location = self.__data_reader.nodes_location
-        list_to_add = Graph.__get_tuple_to_add_graph(self.__path_processed_data)
+        list_to_add = Graph.__get_tuple_to_add_graph()
         for info in list_to_add:
             epsilon = info[0]           
             sigma = info[1]           
@@ -428,7 +435,7 @@ class Graph():
             Returns None.
         """
 
-        nodes = Graph.get_nodes_ids_by_size(self.__path_processed_data,size)
+        nodes = Graph.get_nodes_ids_by_size(size)
         edge_index = []
         edge_weight = []
         nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
@@ -482,7 +489,7 @@ class Graph():
             No Arguments.
             Returns bool.
         """
-        return len(Graph.__get_tuple_to_add_nodes(Folders.proccessed_data_path)) > 0 and len(Graph.__get_tuple_to_add_graph(Folders.proccessed_data_path)) > 0
+        return len(Graph.__get_tuple_to_add_nodes()) > 0 and len(Graph.__get_tuple_to_add_graph()) > 0
     
     def __get_tuple_to_add_nodes() -> list:
         r"""

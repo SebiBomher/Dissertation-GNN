@@ -84,11 +84,17 @@ class DatasetClass(object):
 
 class LinearRegressionDataset():
     r"""
-    
+        Class for Linear Regression data manipulation
+        Instance functions:
+        Class Functions:
     """
+    #region Constructor & Properties
 
     def __init__(self,
                  datareader: DataReader):
+        r"""
+            Constructor, Receives a datareader
+        """
         self.proccessed_data_path = Folders.proccessed_data_path
         self.proccessed_data_path_model = os.path.join(
             self.proccessed_data_path, "LinearRegression")
@@ -96,9 +102,79 @@ class LinearRegressionDataset():
         self.device = Constants.device
         self.__save_dataset()
 
+    #endregion
+
+    #region Instance Functions
+
+    def __getitem__(self, time_index: int):
+        r"""
+            Function for iterator to get the current item in a collection.
+            Args:
+                time_index : int, index in the collection
+            Instance Function
+            Returns a tuple of data for train and test, labels for train and test and the node id
+        """
+        name_x = os.path.join(self.proccessed_data_path_model,
+                              "Data", 'X_{0}*.npy'.format(str(time_index)))
+        name_y = os.path.join(self.proccessed_data_path_model,
+                              "Data", 'Y_{0}*.npy'.format(str(time_index)))
+        for filename in glob.glob(name_x):
+            node_id = filename[-10:-4]
+            X = np.load(filename)
+        for filename in glob.glob(name_y):
+            Y = np.load(filename)
+
+        X_train, X_test, Y_train, Y_test = train_test_split(
+            X, Y, test_size=0.2, shuffle=False)
+        return X_train, X_test, Y_train, Y_test, node_id
+
+    def __next__(self):
+        r"""
+            Function to return the next item in the collecion
+            Instance Function
+            Returns the next __getitem__
+        """
+        if self.t < DatasetSizeNumber.Medium.value:
+            snapshot = self.__getitem__(self.t)
+            self.t = self.t + 1
+            return snapshot
+        else:
+            self.t = 0
+            raise StopIteration
+
+    def __iter__(self):
+        r"""
+            Iterator initializer
+            Instance Function
+            Returns self
+        """
+        self.t = 0
+        return self
+
+    def get_for_node(self, node: int):
+        r"""
+            Function which returns test data and test labels for a specific node
+        """
+        assert node % math.pow(10, 6) >= 1
+        name_x = os.path.join(self.proccessed_data_path_model,
+                              "Data", 'X_*_{0}.npy'.format(str(node)))
+        name_y = os.path.join(self.proccessed_data_path_model,
+                              "Data", 'Y_*_{0}.npy'.format(str(node)))
+        for filename in glob.glob(name_x):
+            X = np.load(filename)
+        for filename in glob.glob(name_y):
+            Y = np.load(filename)
+        _, X_test, _, Y_test = train_test_split(
+            X, Y, test_size=0.2, shuffle=False)
+        return X_test, Y_test
+
+    #endregion
+
+    #region Class Functions
+
     def __arrange_data(data, num_nodes):
         r"""
-
+            Class Function to arrange from raw data to ordered data such that in each item there is information for a row
         """
         New_Data = []
         for i in range(num_nodes):
@@ -110,9 +186,9 @@ class LinearRegressionDataset():
 
     def __save_dataset(datareader):
         r"""
-            
+            Function which saves data for easier go through at train time
         """
-        if not LinearRegressionDataset.need_load(Folders.proccessed_data_path):
+        if not LinearRegressionDataset.need_load():
             return
         proccessed_data_path_model = os.path.join(
             Folders.proccessed_data_path, "LinearRegression")
@@ -147,65 +223,21 @@ class LinearRegressionDataset():
 
         return
 
-    def need_load(proccessed_data_path):
+    def need_load():
         r"""
-            
+            Function to determine wheter to start saving data
         """
-        return not os.path.exists(os.path.join(os.path.join(proccessed_data_path, "LinearRegression"), 'Data'))
+        return not os.path.exists(os.path.join(os.path.join(Folders.proccessed_data_path, "LinearRegression"), 'Data'))
 
-    def __getitem__(self, time_index: int):
-        r"""
-            
-        """
-        name_x = os.path.join(self.proccessed_data_path_model,
-                              "Data", 'X_{0}*.npy'.format(str(time_index)))
-        name_y = os.path.join(self.proccessed_data_path_model,
-                              "Data", 'Y_{0}*.npy'.format(str(time_index)))
-        for filename in glob.glob(name_x):
-            node_id = filename[-10:-4]
-            X = np.load(filename)
-        for filename in glob.glob(name_y):
-            Y = np.load(filename)
-
-        X_train, X_test, Y_train, Y_test = train_test_split(
-            X, Y, test_size=0.2, shuffle=False)
-        return X_train, X_test, Y_train, Y_test, node_id
-
-    def __next__(self):
-        r"""
-            
-        """
-        if self.t < DatasetSizeNumber.Medium.value:
-            snapshot = self.__getitem__(self.t)
-            self.t = self.t + 1
-            return snapshot
-        else:
-            self.t = 0
-            raise StopIteration
-
-    def __iter__(self):
-        r"""
-            
-        """
-        self.t = 0
-        return self
-
-    def get_for_node(self, node: int):
-        assert node % math.pow(10, 6) >= 1
-        name_x = os.path.join(self.proccessed_data_path_model,
-                              "Data", 'X_*_{0}.npy'.format(str(node)))
-        name_y = os.path.join(self.proccessed_data_path_model,
-                              "Data", 'Y_*_{0}.npy'.format(str(node)))
-        for filename in glob.glob(name_x):
-            X = np.load(filename)
-        for filename in glob.glob(name_y):
-            Y = np.load(filename)
-        _, X_test, _, Y_test = train_test_split(
-            X, Y, test_size=0.2, shuffle=False)
-        return X_test, Y_test
+    #endregion
 
 
 class CustomDataset(DatasetClass):
+    r"""
+        Class for data manipulation for the Custom model
+    """
+
+    #region Constructor & Properites
 
     def __init__(self,
                  sigma: int,
@@ -215,7 +247,9 @@ class CustomDataset(DatasetClass):
                  device: str = 'cpu',
                  time_start: int = 0,
                  time_stop: float = -1):
-
+        r"""
+            Constructor. It also uses base class intialization.
+        """
         super().__init__(sigma, epsilon, size, datareader, device, time_start, time_stop)
         self.proccessed_data_path_model = os.path.join(
             self.proccessed_data_path, "Custom")
@@ -224,25 +258,28 @@ class CustomDataset(DatasetClass):
         self.__check_temporal_consistency()
         self.__set_snapshot_count()
 
+    #endregion
+
+    #region Instance Functions
+
     def __check_temporal_consistency(self):
+        r"""
+            Function to check if the data and labels have the same number and there are not discrepancies.
+        """
         assert len(glob.glob1(os.path.join(self.proccessed_data_path_model, "Data_{0}_{1}".format(str(self.batch_size), str(self.size.name))), "X_*.npy")) == len(glob.glob1(
             os.path.join(self.proccessed_data_path_model, "Data_{0}_{1}".format(str(self.batch_size), str(self.size.name))), "Y_*.npy")), "Temporal dimension inconsistency."
 
-    def need_load(proccessed_data_path):
-        return len(CustomDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "Custom"))) > 0
-
-    def get_dataset_Custom(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, datareader: DataReader, device: str):
-        DataTraffic = CustomDataset(
-            sigma, epsilon, nodes_size, datareader, device)
-        train, val, test = DataTraffic.__split_dataset(
-            train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
-        return train, val, test
-
     def __set_snapshot_count(self):
+        r"""
+            Sets the dataset length
+        """
         self.snapshot_count = len(glob.glob1(os.path.join(
             self.proccessed_data_path_model, "Data_{0}".format(str(self.size.name))), "X_*.npy"))
 
     def __split_dataset(self, train_ratio: float = 0.6, val_ratio: float = 0.2, test_ratio: float = 0.2):
+        r"""
+            Dataset splitter. Splits dataset based on ratios into train validation and test
+        """
         assert train_ratio + test_ratio + val_ratio == 1
         time_train = int(train_ratio*self.snapshot_count)
         time_test = time_train + int(test_ratio*self.snapshot_count)
@@ -274,6 +311,9 @@ class CustomDataset(DatasetClass):
         return train_iterator, val_iterator, test_iterator
 
     def __arrange_data(self, data, num_nodes):
+        r"""
+            Function to arrange data. At a point it represents the temporal state of the graph
+        """
         New_Data = []
         for i in range((int)(len(data)/num_nodes)):
             Data = []
@@ -283,6 +323,9 @@ class CustomDataset(DatasetClass):
         return New_Data
 
     def __save_proccess_data(self, datareader: DataReader, size: DatasetSize):
+        r"""
+            Function which saves data for easier go through at train time
+        """
         print("Saving data with configuration : size = {0}".format(
             str(size.name)))
 
@@ -308,26 +351,10 @@ class CustomDataset(DatasetClass):
             name_y = os.path.join(name_folder, 'Y_{0}.npy'.format(str(index)))
             np.save(name_y, data)
 
-    def __get_tuple_to_add(proccessed_data_path):
-
-        to_create = []
-        for size in DatasetSize:
-            name_folder = os.path.join(
-                proccessed_data_path, 'Data_{0}'.format(str(size.name)))
-            if not os.path.exists(name_folder):
-                to_create.append([size])
-        return to_create
-
-    def __save_dataset(data_reader):
-        proccessed_data_path_model = os.path.join(
-            Folders.proccessed_data_path, "Custom")
-        to_create = CustomDataset.__get_tuple_to_add(
-            proccessed_data_path_model)
-        for tuple in to_create:
-            size = tuple[0]
-            CustomDataset.__save_proccess_data(data_reader, size)
-
     def __get_features(self, time_index: int):
+        r"""
+            Function to get data at a time index
+        """
         name_x = os.path.join(self.proccessed_data_path_model, "Data_{0}".format(
             str(self.size.name)), 'X_{0}.npy'.format(str(time_index)))
         X = np.load(name_x)
@@ -337,6 +364,9 @@ class CustomDataset(DatasetClass):
             return torch.FloatTensor(X).to(self.device)
 
     def __get_target(self, time_index: int):
+        r"""
+            Function to get labels at a time index
+        """
         name_y = os.path.join(self.proccessed_data_path_model, "Data_{0}".format(
             str(self.size.name)), 'Y_{0}.npy'.format(str(time_index)))
         Y = np.load(name_y)
@@ -349,11 +379,17 @@ class CustomDataset(DatasetClass):
                 return torch.FloatTensor(Y).to(self.device)
 
     def __getitem__(self, time_index: int):
+        r"""
+            Function to get featuers and target and a time index
+        """
         x = self.__get_features(time_index)
         y = self.__get_target(time_index)
         return x, y
 
     def __next__(self):
+        r"""
+            Function to iterate the next item in the collection
+        """
         if self.t < self.time_stop:
             snapshot = self.__getitem__(self.t)
             self.t = self.t + 1
@@ -363,11 +399,63 @@ class CustomDataset(DatasetClass):
             raise StopIteration
 
     def __iter__(self):
+        r"""
+            Iterator construcor
+        """
         self.t = self.time_start
         return self
 
     def __len__(self):
+        """
+            Iterator length
+        """
         return self.snapshot_count
+
+    #endregion
+
+    #region Class Functions
+
+    def need_load(proccessed_data_path):
+        r"""
+            Function to determine wheter to start saving data
+        """
+        return len(CustomDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "Custom"))) > 0
+
+    def get_dataset_Custom(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, datareader: DataReader, device: str):
+        r"""
+            Function used in Learn to get train validation and test datasets for training
+        """
+        DataTraffic = CustomDataset(
+            sigma, epsilon, nodes_size, datareader, device)
+        train, val, test = DataTraffic.__split_dataset(
+            train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
+        return train, val, test
+
+    def __get_tuple_to_add(proccessed_data_path):
+        r"""
+            Function to retrieve what data is missing in order for it to be saved
+        """
+        to_create = []
+        for size in DatasetSize:
+            name_folder = os.path.join(
+                proccessed_data_path, 'Data_{0}'.format(str(size.name)))
+            if not os.path.exists(name_folder):
+                to_create.append([size])
+        return to_create
+
+    def __save_dataset(data_reader):
+        r"""
+            Function to save the dataset
+        """
+        proccessed_data_path_model = os.path.join(
+            Folders.proccessed_data_path, "Custom")
+        to_create = CustomDataset.__get_tuple_to_add(
+            proccessed_data_path_model)
+        for tuple in to_create:
+            size = tuple[0]
+            CustomDataset.__save_proccess_data(data_reader, size)
+
+    #endregion
 
 
 class STConvDataset(DatasetClass):
