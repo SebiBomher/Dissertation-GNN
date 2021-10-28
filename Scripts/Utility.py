@@ -5,17 +5,19 @@ class Constants():
     r"""
         Class for constant variables
     """
+    
     num_features : int = 2
-    device = "cpu"
+    device : str = "cpu"
+
     # Training parameters
     learning_rate : float = 0.01
     EarlyStoppingPatience : int = 10
     nb_epoch : int = 300
-    batch_size = 8
-    hidden_channels = 8
+    batch_size : int = 8
+    hidden_channels : int = 8
     
     #Hyper Parameter Tuning Parameters
-    num_samples : int = 16
+    num_samples : int = 1
     grace_period : int = 100
     reduction_factor : int = 3
 
@@ -31,15 +33,13 @@ class Constants():
     graph_info_txt : str = "d07_text_meta_2021_03_27.txt"
     results_folder : str = "Results"
     results_ray_folder : str = "Results-RAY"
-    folder_save_plots = "Plots"
+    folder_save_plots : str = "Plots"
 
 class Folders():
     r"""
         Class for folders and paths
     """
-    def __init__(self) -> None:
-        return
-
+    
     __current_directory = os.getcwd()
     path_data = os.path.join(__current_directory,Constants.data_folder)
     proccessed_data_path = os.path.join(__current_directory,Constants.proccessed_data_folder)
@@ -49,6 +49,28 @@ class Folders():
     results_ray_path = os.path.join(__current_directory,Constants.results_ray_folder)
     path_save_plots = os.path.join(__current_directory,Constants.folder_save_plots)
 
+    def CreateFolders(self) -> None:
+        if not os.path.exists(self.path_data):
+            os.makedirs(self.path_data)
+        
+        if not os.path.exists(self.proccessed_data_path):
+            os.makedirs(self.proccessed_data_path)
+        
+        if not os.path.exists(self.graph_info_path):
+            os.makedirs(self.graph_info_path)
+        
+        if not os.path.exists(self.checkpoint_LR_path):
+            os.makedirs(self.checkpoint_LR_path)
+        
+        if not os.path.exists(self.results_path):
+            os.makedirs(self.results_path)
+        
+        if not os.path.exists(self.results_ray_path):
+            os.makedirs(self.results_ray_path)
+        
+        if not os.path.exists(self.path_save_plots):
+            os.makedirs(self.path_save_plots)
+        
 
 class DatasetSizeNumber(Enum):
     r"""
