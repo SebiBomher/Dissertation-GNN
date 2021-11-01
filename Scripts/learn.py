@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import copy
 import pandas as pd
+from statsmodels.base.model import Model
 import torch
 import os
 import shutil
@@ -22,6 +23,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from Scripts.DatasetClasses import CustomDataset, LinearRegressionDataset, STConvDataset
 from ray.tune.schedulers.async_hyperband import ASHAScheduler
 from datetime import datetime
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.statespace.varmax import VARMAX
+
 #endregion
 
 
@@ -111,7 +115,7 @@ class Learn():
         self.num_features = param["num_features"]
         self.device = Constants.device
 
-    def InitLR(self, datareader: DataReader, model_type: ModelType):
+    def Init(self, datareader: DataReader, model_type: ModelType):
         r"""
             Linear Regression Constructor
             Args:
@@ -284,6 +288,89 @@ class Learn():
         print("Best trial test set loss: {}".format(MAE_loss))
         return dfResults
 
+    def __VARMAXTrainAndTest(self, experiment_name : str) -> None:
+        r"""
+            Trains and tests VARMAX
+            No Arguments.
+            Instance Function.
+            Returns None.
+        """
+
+        results_folder = os.path.join(
+            Folders.results_ray_path, experiment_name, Constants.checkpoin_VARMAX_folder)
+
+        if not os.path.exists(results_folder):
+            os.makedirs(results_folder)
+        dfResults = pd.DataFrame(columns=["Node_Id", "Criterion", "Loss"])
+        for _, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(self.train_dataset):
+            VARMAX_model = VARMAX(Y_train)
+            VARMAX_model = VARMAX_model.fit()
+            Y_pred = VARMAX_model.predict(1, len(Y_test))
+            for criterion in LossFunction.Criterions():
+                loss = criterion(torch.FloatTensor(Y_test).to(
+                    self.train_dataset.device), torch.FloatTensor(Y_pred).to(self.train_dataset.device))
+                loss = loss.item()
+                result = {"Node_Id": node_id,
+                          "Criterion": criterion.__name__, "Loss": str(loss)}
+                dfResults = dfResults.append(result, ignore_index=True)
+                if criterion == LossFunction.MAE:
+                    print("Best trial test set loss {0} : {1} for node id : {2}".format(
+                        criterion.__name__, loss, node_id))
+                    name_model = os.path.join(results_folder, "model_node_{0}_{1}_{2}.pickle".format(
+                        node_id, criterion.__name__, loss))
+                    with open(name_model, 'wb') as handle:
+                        pickle.dump(VARMAX_model, handle,
+                                    protocol=pickle.HIGHEST_PROTOCOL)
+
+        folder_save = os.path.join(Folders.results_path, experiment_name)
+
+        if not os.path.exists(folder_save):
+            os.makedirs(folder_save)
+
+        file_save = os.path.join(folder_save, "ARIMA.csv")
+        dfResults.to_csv(path_or_buf=file_save, index=False)
+    def __ARIMATrainAndTest(self, experiment_name : str) -> None :
+        r"""
+            Trains and tests ARIMA
+            No Arguments.
+            Instance Function.
+            Returns None.
+        """
+
+        results_folder = os.path.join(
+            Folders.results_ray_path, experiment_name, Constants.checkpoin_ARIMA_folder)
+
+        if not os.path.exists(results_folder):
+            os.makedirs(results_folder)
+        dfResults = pd.DataFrame(columns=["Node_Id", "Criterion", "Loss"])
+        for _, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(self.train_dataset):
+            ARIMA_model = ARIMA(Y_train)
+            ARIMA_model = ARIMA_model.fit()
+            Y_pred = ARIMA_model.predict(1, len(Y_test))
+            for criterion in LossFunction.Criterions():
+                loss = criterion(torch.FloatTensor(Y_test).to(
+                    self.train_dataset.device), torch.FloatTensor(Y_pred).to(self.train_dataset.device))
+                loss = loss.item()
+                result = {"Node_Id": node_id,
+                          "Criterion": criterion.__name__, "Loss": str(loss)}
+                dfResults = dfResults.append(result, ignore_index=True)
+                if criterion == LossFunction.MAE:
+                    print("Best trial test set loss {0} : {1} for node id : {2}".format(
+                        criterion.__name__, loss, node_id))
+                    name_model = os.path.join(results_folder, "model_node_{0}_{1}_{2}.pickle".format(
+                        node_id, criterion.__name__, loss))
+                    with open(name_model, 'wb') as handle:
+                        pickle.dump(ARIMA_model, handle,
+                                    protocol=pickle.HIGHEST_PROTOCOL)
+
+        folder_save = os.path.join(Folders.results_path, experiment_name)
+
+        if not os.path.exists(folder_save):
+            os.makedirs(folder_save)
+
+        file_save = os.path.join(folder_save, "ARIMA.csv")
+        dfResults.to_csv(path_or_buf=file_save, index=False)
+
     def __LRTrainAndTest(self, experiment_name: str) -> None:
         r"""
             Trains and tests Linear Regression
@@ -295,10 +382,6 @@ class Learn():
             'fit_intercept': [True],
         }
 
-        # nr_files = len([name for name in os.listdir(Folders.checkpoint_LR_path) if os.path.isfile(os.path.join(Folders.checkpoint_LR_path, name))])
-
-        # if nr_files == DatasetSizeNumber.Medium.value * 4:
-        #     return
         results_folder = os.path.join(
             Folders.results_ray_path, experiment_name, Constants.checkpoint_LR_folder)
 
@@ -423,7 +506,7 @@ class Learn():
         learn.__set_for_train()
         learn.__train_val_and_test(param["experiment_name"])
 
-    def startLR(datareader: DataReader, experiment_name: str) -> None:
+    def startNonGNN(datareader: DataReader, experiment_name: str, model_type : ModelType) -> None:
         r"""
             Function to start training Linear Regression
             Class Function.
@@ -432,10 +515,15 @@ class Learn():
             Returns None.
         """
         learn = Learn()
-        learn.InitLR(datareader=datareader,
+        learn.Init(datareader=datareader,
                      model_type=ModelType.LinearRegression)
         learn.__set_for_train()
-        learn.__LRTrainAndTest(experiment_name=experiment_name)
+        if model_type == ModelType.LinearRegression:
+            learn.__LRTrainAndTest(experiment_name=experiment_name)
+        elif model_type == ModelType.ARIMA:
+            learn.__ARIMATrainAndTest(experiment_name=experiment_name)
+        elif model_type == ModelType.VARMAX:
+            learn.__VARMAXTrainAndTest(experiment_name=experiment_name)
 
     def trail_dirname_creator(trial):
         return f"{trial.config['model_type'].name}_{trial.config['nodes_size'].name}_{datetime.now().strftime('%d_%m_%Y-%H_%M_%S')}"
@@ -520,7 +608,9 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        Learn.startLR(datareader=datareader, experiment_name=experiment_name)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.VARMAX)
 
         for datasize in DatasetSize:
             for model in ModelType:

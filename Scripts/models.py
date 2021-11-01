@@ -4,6 +4,7 @@ from torch_geometric_temporal.nn.recurrent import GCLSTM
 from torch_geometric.nn import GCNConv
 from torch.nn import ReLU,Linear,Module,MaxPool1d,BatchNorm1d,Dropout
 from sklearn.linear_model import LinearRegression
+from statsmodels.tsa.arima.model import ARIMA
 
 class STConvModel(Module):
     def __init__(self, node_features,num_nodes,hidden_channels,kernel_size,K):

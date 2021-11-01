@@ -36,6 +36,8 @@ class Constants():
     results_folder : str = "Results"
     results_ray_folder : str = "Results-RAY"
     folder_save_plots : str = "Plots"
+    checkpoin_ARIMA_folder : str = "Checkpoint_ARIMA"
+    checkpoin_VARMAX_folder : str = "Checkpoint_VARMAX"
 
 class Folders():
     r"""
@@ -109,7 +111,9 @@ class ModelType(Enum):
     Custom = 0
     STCONV = 1
     LinearRegression = 2
-
+    ARIMA = 3
+    VARMAX = 4
+    RNN = 5
 class OptimizerType(Enum):
     r"""
         Enumeration for each optimizer type
