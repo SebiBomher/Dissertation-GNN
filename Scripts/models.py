@@ -54,3 +54,15 @@ class CustomModel(Module):
 class LinearRegression():
     def __init__(self):
         self.model = LinearRegression()
+
+class ARIMAModel():
+    def __init__(self):
+        return
+
+class RNNModel():
+    def __init__(self):
+        return
+
+class VARMAXModel():
+    def __init__(self):
+        return

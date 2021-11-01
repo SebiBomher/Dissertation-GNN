@@ -60,44 +60,45 @@ class DataReader():
         if (not os.path.isdir(os.path.join(self.__path_proccessed_data,"STCONV")) or 
         not os.path.isdir(os.path.join(self.__path_proccessed_data,"Custom")) or 
         not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeWeight")) or
-        not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeIndex"))):
+        not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeIndex")) or
+        not os.path.isdir(os.path.join(self.__path_proccessed_data,"LinearRegression"))):
             self.start()
             Graph(epsilon=0.1,sigma=3,size=DatasetSize.Medium,data_reader=self)
     #endregion
     
     #region Instance Functions
 
-    def results(self)-> Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]:
+    def results(self,experiment_name : str)-> Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]:
         r"""
             Reads the csv results and combines the Custom and STCONV results into 2 csv files.
             Instance Function.
             No Arguments.
             Returns a Tuple of 3 pandas Dataframe, one for each model.
         """
+        experiment_path = os.path.join(self.__results_path,experiment_name)
+        dfLR = pd.read_csv(os.path.join(experiment_path,"LinearRegression.csv"))
+        columnsInfo = ["Model", "Epsilon", "Sigma", "Size", "Criterion", "Loss", "Epoch", "OptimizerType", "Trial", "TestOrVal"]
 
-        dfLR = pd.read_csv(os.path.join(self.__results_path,"LinearRegression.csv"))
-        columnsInfo = ["Model","Epsilon","Sigma","Size","Criterion","Loss","OptimizerType","TestOrVal","Trial"]
-
-        STCONVFile = os.path.join(self.__results_path,"STCONV.csv")
+        STCONVFile = os.path.join(experiment_path,"STCONV.csv")
         if not(os.path.exists(STCONVFile)):
             dataframeInfo = pd.DataFrame(columns = columnsInfo)
-            STConvFiles = os.path.join(self.__results_path,"STCONV_*_*.csv")
+            STConvFiles = os.path.join(experiment_path,"STCONV_*_*.csv")
             for file in glob(STConvFiles):
                 with open(file) as f:
                     dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
             dataframeInfo.to_csv(STCONVFile)
 
-        CustomFile = os.path.join(self.__results_path,"CUSTOM.csv")
+        CustomFile = os.path.join(experiment_path,"CUSTOM.csv")
         if not(os.path.exists(CustomFile)):
             dataframeInfo = pd.DataFrame(columns = columnsInfo)
-            CustomFiles = os.path.join(self.__results_path,"CUSTOM*_*.csv")
+            CustomFiles = os.path.join(experiment_path,"CUSTOM*_*.csv")
             for file in glob(CustomFiles):
                 with open(file) as f:
                     dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
             dataframeInfo.to_csv(CustomFile)
 
-        dfSTCONV = pd.read_csv(os.path.join(self.__results_path,"STCONV.csv"))
-        dfCUSTOM = pd.read_csv(os.path.join(self.__results_path,"CUSTOM.csv"))
+        dfSTCONV = pd.read_csv(os.path.join(experiment_path,"STCONV.csv"))
+        dfCUSTOM = pd.read_csv(os.path.join(experiment_path,"CUSTOM.csv"))
         return dfLR,dfSTCONV,dfCUSTOM
 
     def start(self) -> None:
@@ -239,7 +240,6 @@ class DataReader():
             Returns a tuple of 2 lists with the Data and Labels
         """
 
-        assert len(self.X) > Graph.get_number_nodes_by_size(size)
         new_X = []
         new_Y = []
         nodes_index = 0

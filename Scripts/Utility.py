@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 from enum import Enum
 
@@ -15,9 +16,10 @@ class Constants():
     nb_epoch : int = 300
     batch_size : int = 8
     hidden_channels : int = 8
+    time_steps = 1
     
     #Hyper Parameter Tuning Parameters
-    num_samples : int = 1
+    num_samples : int = 16
     grace_period : int = 100
     reduction_factor : int = 3
 
@@ -44,7 +46,6 @@ class Folders():
     path_data = os.path.join(__current_directory,Constants.data_folder)
     proccessed_data_path = os.path.join(__current_directory,Constants.proccessed_data_folder)
     graph_info_path = os.path.join(__current_directory,Constants.data_folder,Constants.graph_info_txt)
-    checkpoint_LR_path = os.path.join(__current_directory,Constants.checkpoint_LR_folder)
     results_path = os.path.join(__current_directory,Constants.results_folder)
     results_ray_path = os.path.join(__current_directory,Constants.results_ray_folder)
     path_save_plots = os.path.join(__current_directory,Constants.folder_save_plots)
@@ -59,8 +60,6 @@ class Folders():
         if not os.path.exists(self.graph_info_path):
             os.makedirs(self.graph_info_path)
         
-        if not os.path.exists(self.checkpoint_LR_path):
-            os.makedirs(self.checkpoint_LR_path)
         
         if not os.path.exists(self.results_path):
             os.makedirs(self.results_path)

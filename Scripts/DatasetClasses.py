@@ -6,6 +6,7 @@ import torch
 import numpy as np
 import glob
 from Scripts.DataProccess import DataReader, Graph
+from Scripts.Models import CustomModel
 from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
@@ -31,7 +32,6 @@ class DatasetClass(object):
     
         """
         self.proccessed_data_path = Folders.proccessed_data_path
-        self.batch_size = Constants.batch_size
         self.sigma = sigma
         self.epsilon = epsilon
         self.time_start = time_start
@@ -52,8 +52,8 @@ class DatasetClass(object):
             No Arguments.
             Returns None.
         """
-        self.graph = Graph(self.proccessed_data_path, self.epsilon,
-                           self.sigma, self.size, self.data_reader)
+        self.graph = Graph(self.epsilon, self.sigma,
+                           self.size, self.data_reader)
 
     def get_edge_index(self):
         r"""
@@ -100,7 +100,6 @@ class LinearRegressionDataset():
             self.proccessed_data_path, "LinearRegression")
         self.datareader = datareader
         self.device = Constants.device
-        self.__save_dataset()
 
     #endregion
 
@@ -118,12 +117,12 @@ class LinearRegressionDataset():
                               "Data", 'X_{0}*.npy'.format(str(time_index)))
         name_y = os.path.join(self.proccessed_data_path_model,
                               "Data", 'Y_{0}*.npy'.format(str(time_index)))
+
         for filename in glob.glob(name_x):
             node_id = filename[-10:-4]
             X = np.load(filename)
         for filename in glob.glob(name_y):
             Y = np.load(filename)
-
         X_train, X_test, Y_train, Y_test = train_test_split(
             X, Y, test_size=0.2, shuffle=False)
         return X_train, X_test, Y_train, Y_test, node_id
@@ -184,7 +183,7 @@ class LinearRegressionDataset():
             New_Data.append(Data)
         return New_Data
 
-    def __save_dataset(datareader):
+    def save_dataset(datareader: DataReader):
         r"""
             Function which saves data for easier go through at train time
         """
@@ -192,16 +191,15 @@ class LinearRegressionDataset():
             return
         proccessed_data_path_model = os.path.join(
             Folders.proccessed_data_path, "LinearRegression")
-        X, Y = datareader.get_clean_data_by_nodes(
-            DatasetSize.Medium, Folders.proccessed_data_path)
+
+        X, Y = datareader.get_clean_data_by_nodes(DatasetSize.Medium)
 
         X = LinearRegressionDataset.__arrange_data(
             X, DatasetSizeNumber.Medium.value)
         Y = LinearRegressionDataset.__arrange_data(
             Y, DatasetSizeNumber.Medium.value)
 
-        nodes_ids = Graph.get_nodes_ids_by_size(
-            Folders.proccessed_data_path, DatasetSize.Medium)
+        nodes_ids = Graph.get_nodes_ids_by_size(DatasetSize.Medium)
 
         if not os.path.exists(proccessed_data_path_model):
             os.makedirs(proccessed_data_path_model)
@@ -254,7 +252,6 @@ class CustomDataset(DatasetClass):
         self.proccessed_data_path_model = os.path.join(
             self.proccessed_data_path, "Custom")
         self.transform = transforms.Compose([transforms.ToTensor()])
-        self.__save_dataset()
         self.__check_temporal_consistency()
         self.__set_snapshot_count()
 
@@ -266,8 +263,8 @@ class CustomDataset(DatasetClass):
         r"""
             Function to check if the data and labels have the same number and there are not discrepancies.
         """
-        assert len(glob.glob1(os.path.join(self.proccessed_data_path_model, "Data_{0}_{1}".format(str(self.batch_size), str(self.size.name))), "X_*.npy")) == len(glob.glob1(
-            os.path.join(self.proccessed_data_path_model, "Data_{0}_{1}".format(str(self.batch_size), str(self.size.name))), "Y_*.npy")), "Temporal dimension inconsistency."
+        assert len(glob.glob1(os.path.join(self.proccessed_data_path_model, "Data_{0}".format(str(self.size.name))), "X_*.npy")) == len(glob.glob1(
+            os.path.join(self.proccessed_data_path_model, "Data_{0}".format(str(self.size.name))), "Y_*.npy")), "Temporal dimension inconsistency."
 
     def __set_snapshot_count(self):
         r"""
@@ -310,7 +307,7 @@ class CustomDataset(DatasetClass):
 
         return train_iterator, val_iterator, test_iterator
 
-    def __arrange_data(self, data, num_nodes):
+    def __arrange_data(data, num_nodes):
         r"""
             Function to arrange data. At a point it represents the temporal state of the graph
         """
@@ -322,24 +319,26 @@ class CustomDataset(DatasetClass):
             New_Data.append(Data)
         return New_Data
 
-    def __save_proccess_data(self, datareader: DataReader, size: DatasetSize):
+    def __save_proccess_data(datareader: DataReader, size: DatasetSize):
         r"""
             Function which saves data for easier go through at train time
         """
         print("Saving data with configuration : size = {0}".format(
             str(size.name)))
 
-        X, Y = datareader.get_clean_data_by_nodes(
-            size, self.proccessed_data_path)
+        X, Y = datareader.get_clean_data_by_nodes(size)
 
-        X = self.__arrange_data(X, Graph.get_number_nodes_by_size(size))
-        Y = self.__arrange_data(Y, Graph.get_number_nodes_by_size(size))
-
-        if not os.path.exists(self.proccessed_data_path_model):
-            os.makedirs(self.proccessed_data_path_model)
+        X = CustomDataset.__arrange_data(
+            X, Graph.get_number_nodes_by_size(size))
+        Y = CustomDataset.__arrange_data(
+            Y, Graph.get_number_nodes_by_size(size))
+        proccessed_data_path_model = os.path.join(
+            Folders.proccessed_data_path, "Custom")
+        if not os.path.exists(proccessed_data_path_model):
+            os.makedirs(proccessed_data_path_model)
 
         name_folder = os.path.join(
-            self.proccessed_data_path_model, 'Data_{0}'.format(str(size.name)))
+            proccessed_data_path_model, 'Data_{0}'.format(str(size.name)))
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
 
@@ -443,7 +442,7 @@ class CustomDataset(DatasetClass):
                 to_create.append([size])
         return to_create
 
-    def __save_dataset(data_reader):
+    def save_dataset(data_reader: DataReader):
         r"""
             Function to save the dataset
         """
@@ -460,10 +459,7 @@ class CustomDataset(DatasetClass):
 
 class STConvDataset(DatasetClass):
 
-    time_steps_array = [1]
-
     def __init__(self,
-                 time_steps: int,
                  sigma: int,
                  epsilon: float,
                  size: DatasetSize,
@@ -475,40 +471,31 @@ class STConvDataset(DatasetClass):
         super().__init__(sigma, epsilon, size, datareader, device, time_start, time_stop)
         self.proccessed_data_path_STCONV = os.path.join(
             self.proccessed_data_path, "STCONV")
-        self.time_steps = time_steps
-        self.__check_timesteps()
-        self.__save_dataset()
         self.__check_temporal_consistency()
         self.__set_snapshot_count()
 
     def __check_temporal_consistency(self):
-        assert len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}_{1}_{2}".format(str(self.time_steps), str(self.batch_size), str(self.size.name))), "X_*.npy")) == len(glob.glob1(
-            os.path.join(self.proccessed_data_path_STCONV, "Data_{0}_{1}_{2}".format(str(self.time_steps), str(self.batch_size), str(self.size.name))), "Y_*.npy")), "Temporal dimension inconsistency."
+        assert len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(self.size.name))), "X_*.npy")) == len(glob.glob1(
+            os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(self.size.name))), "Y_*.npy")), "Temporal dimension inconsistency."
 
     def need_load(proccessed_data_path):
         return len(STConvDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "STCONV"))) > 0
 
-    def get_dataset_STCONV(train_ratio: float, test_ratio: float, val_ratio: float, batch_size: int, time_steps: int, epsilon: float, sigma: int, nodes_size: DatasetSize, datareader: DataReader, device: str):
-        DataTraffic = STConvDataset(
-            time_steps, batch_size, sigma, epsilon, nodes_size, datareader, device)
+    def get_dataset_STCONV(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, datareader: DataReader, device: str):
+        DataTraffic = STConvDataset(sigma, epsilon, nodes_size, datareader, device)
         train, val, test = DataTraffic.__split_dataset(
             train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
         return train, val, test
 
     def __set_snapshot_count(self):
-        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}_{1}_{2}".format(
-            str(self.time_steps), str(self.batch_size), str(self.size.name))), "X_*.npy"))
-
-    def __check_timesteps(self):
-        assert self.time_steps in self.time_steps_array
+        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(self.size.name))), "X_*.npy"))
 
     def __split_dataset(self, train_ratio: float = 0.6, val_ratio: float = 0.2, test_ratio: float = 0.2):
         assert train_ratio + test_ratio + val_ratio == 1
         time_train = int(train_ratio*self.snapshot_count)
         time_test = time_train + int(test_ratio*self.snapshot_count)
 
-        train_iterator = STConvDataset(self.time_steps,
-                                       self.sigma,
+        train_iterator = STConvDataset(self.sigma,
                                        self.epsilon,
                                        self.size,
                                        self.data_reader,
@@ -516,8 +503,7 @@ class STConvDataset(DatasetClass):
                                        0,
                                        time_train + 1)
 
-        test_iterator = STConvDataset(self.time_steps,
-                                      self.sigma,
+        test_iterator = STConvDataset(self.sigma,
                                       self.epsilon,
                                       self.size,
                                       self.data_reader,
@@ -525,8 +511,7 @@ class STConvDataset(DatasetClass):
                                       time_train + 1,
                                       time_test)
 
-        val_iterator = STConvDataset(self.time_steps,
-                                     self.sigma,
+        val_iterator = STConvDataset(self.sigma,
                                      self.epsilon,
                                      self.size,
                                      self.data_reader,
@@ -536,15 +521,17 @@ class STConvDataset(DatasetClass):
 
         return train_iterator, test_iterator, val_iterator
 
-    def __save_proccess_data(proccessed_data_path: str, batch_size: int, time_steps: int, datareader: DataReader, size: DatasetSize):
+    def __save_proccess_data(datareader: DataReader, size: DatasetSize):
+        batch_size = Constants.batch_size
+        time_steps = Constants.time_steps
 
-        print("Saving data with configuration : time_steps = {0}, batch_size = {1}, size = {2}".format(
-            str(time_steps), str(batch_size), str(size.name)))
+        print("Saving data with configuration : size = {0}".format(
+            str(size.name)))
 
         interval_per_day = datareader.interval_per_day
         Skip = (int)(time_steps/2) * 2
         interval_per_day -= Skip
-        X, Y = datareader.get_clean_data_by_nodes(size, proccessed_data_path)
+        X, Y = datareader.get_clean_data_by_nodes(size)
 
         nodes_size = Graph.get_number_nodes_by_size(size)
 
@@ -566,8 +553,8 @@ class STConvDataset(DatasetClass):
         Y = np.array(Y).reshape(new_size, batch_size,
                                 time_steps, nodes_size, 1)
 
-        name_folder = os.path.join(proccessed_data_path, 'STCONV', 'Data_{0}_{1}_{2}'.format(
-            str(time_steps), str(batch_size), str(size.name)))
+        name_folder = os.path.join(
+            Folders.proccessed_data_path, 'STCONV', 'Data_{0}'.format(str(size.name)))
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
 
@@ -579,7 +566,7 @@ class STConvDataset(DatasetClass):
             name_y = os.path.join(name_folder, 'Y_{0}.npy'.format(str(index)))
             np.save(name_y, data)
 
-    def __arrange_data_for_time_step(self, data, time_steps, num_nodes):
+    def __arrange_data_for_time_step(data, time_steps, num_nodes):
         Skip = (int)(time_steps/2)
         New_Data = []
         for i in range(Skip, (int)((len(data) - (num_nodes * Skip))/(num_nodes))):
@@ -594,30 +581,25 @@ class STConvDataset(DatasetClass):
 
     def __get_tuple_to_add(proccessed_data_path):
         to_create = []
-        for time_step in STConvDataset.time_steps_array:
-            for batch_size in STConvDataset.batch_sizes_array:
-                for size in DatasetSize:
-                    name_folder = os.path.join(proccessed_data_path, 'Data_{0}_{1}_{2}'.format(
-                        str(time_step), str(batch_size), str(size.name)))
-                    if not os.path.exists(name_folder):
-                        to_create.append([time_step, batch_size, size])
+        for size in DatasetSize:
+            name_folder = os.path.join(proccessed_data_path, 'Data_{0}'.format(
+                str(size.name)))
+            if not os.path.exists(name_folder):
+                to_create.append([size])
         return to_create
 
-    def __save_dataset(data_reader):
+    def save_dataset(data_reader: DataReader):
         proccessed_data_path_STCONV = os.path.join(
             Folders.proccessed_data_path, "STCONV")
         to_create = STConvDataset.__get_tuple_to_add(
             proccessed_data_path_STCONV)
         for tuple in to_create:
-            time_step = tuple[0]
-            batch_size = tuple[1]
-            size = tuple[2]
-            STConvDataset.__save_proccess_data(
-                batch_size, time_step, data_reader, size)
+            size = tuple[0]
+            STConvDataset.__save_proccess_data(data_reader, size)
 
     def __get_features(self, time_index: int):
-        name_x = os.path.join(self.proccessed_data_path_STCONV, "Data_{0}_{1}_{2}".format(str(
-            self.time_steps), str(self.batch_size), str(self.size.name)), 'X_{0}.npy'.format(str(time_index)))
+        name_x = os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(
+            str(self.size.name)), 'X_{0}.npy'.format(str(time_index)))
         X = np.load(name_x)
         if X is None:
             return X
@@ -625,8 +607,8 @@ class STConvDataset(DatasetClass):
             return torch.FloatTensor(X).to(self.device)
 
     def __get_target(self, time_index: int):
-        name_y = os.path.join(self.proccessed_data_path_STCONV, "Data_{0}_{1}_{2}".format(str(
-            self.time_steps), str(self.batch_size), str(self.size.name)), 'Y_{0}.npy'.format(str(time_index)))
+        name_y = os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(
+            str(self.size.name)), 'Y_{0}.npy'.format(str(time_index)))
         Y = np.load(name_y)
         if Y is None:
             return Y

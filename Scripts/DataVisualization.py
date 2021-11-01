@@ -100,7 +100,7 @@ class DataViz():
 
         fig.write_image(path_save)
 
-    def MapHeatmapSpeed(self, hour: int, name_save: str) -> None:
+    def MapHeatmapSpeed(self, name_save: str, hour: int) -> None:
         path_save = os.path.join(self.path_save_plots, name_save)
         if os.path.isfile(path_save):
             return
@@ -120,7 +120,7 @@ class DataViz():
 
         fig.write_image(path_save)
 
-    def GraphHeatmap(self,  datareader: DataReader, name_save: str) -> None:
+    def GraphHeatmap(self, name_save: str, datareader: DataReader) -> None:
         path_save = os.path.join(self.path_save_plots, name_save)
         if os.path.isfile(path_save):
             return
@@ -228,6 +228,11 @@ class DataViz():
             'normalize': [True],
         }
 
+        path_save_LR = os.path.join(self.path_save_plots, "RegressionLRTruePredicted")
+
+        if not os.path.exists(path_save_LR):
+            os.makedirs(path_save_LR)
+
         lr_model = LinearRegression()
         clf = GridSearchCV(lr_model, parameters, refit=True, cv=5)
         for index, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(LinearRegressionDataset(datareader)):
@@ -240,8 +245,7 @@ class DataViz():
             df = pd.DataFrame(dict1)
             fig = px.line(df, x='Time', y=[
                           "Actual", "Predicted"], title="Prediction for node {0}".format(node_id))
-            fig.write_image(os.path.join(
-                self.path_save_plots, "RegressionLRTruePredicted", "{0}.png".format(node_id)))
+            fig.write_image(os.path.join(path_save_LR, "{0}.png".format(node_id)))
             print("Regression LR True Predicted node {0}".format(node_id))
             break
 
@@ -281,14 +285,13 @@ class DataViz():
         columns = dfPlot.columns.tolist()
         columns.pop(0)
         fig = px.line(dfPlot, x="Time", y=columns)
-        fig.show()
         fig.write_image(path_save)
 
     def HeatMapLoss(self, name_save: str) -> None:
         path_save = os.path.join(self.path_save_plots, name_save)
         if os.path.isfile(path_save):
             return
-        dfInfo = self.dfInfo
+        dfInfo = self.dfLR
         dfMeta = self.dfMeta
         dfInfo = dfInfo[dfInfo["Criterion"] == "MAE"]
         dfInfo = dfInfo[dfInfo["Loss"] < 20]
@@ -301,35 +304,41 @@ class DataViz():
     def Run():
         datareader = DataReader()
         dfInfo, dfMeta = datareader.visualization()
-        dfLR,dfSTCONV,dfCUSTOM = datareader.results()
-        dataviz = DataViz(path_data = Folders.path_data,
-                            graph_info_txt = Folders.graph_info_path,
-                            path_save_plots = Folders.path_save_plots,
-                            path_processed_data = Folders.proccessed_data_path,
-                            path_results = Folders.results_path,
-                            graph_info_txt = Folders.graph_info_path,
-                            dfInfo = dfInfo,
-                            dfMeta = dfMeta,
-                            dfLR = dfLR,
-                            dfSTCONV = dfSTCONV,
-                            dfCUSTOM = dfCUSTOM)
-        # General Datavizualization
-        dataviz.BoxPlotSpeed("boxplot.png")
-        dataviz.MapPlotSensors("mapplotAll.png")
-        dataviz.MapPlotSensors("mapplotExperimental.png")
-        dataviz.MapPlotSensors("mapplotSmall.png")
-        dataviz.MapPlotSensors("mapplotMedium.png")
-        dataviz.PieChartRoadwayType("piechart.png")
-        dataviz.MapHeatmapSpeed("mapheat9.png",9)
-        dataviz.MapHeatmapSpeed("mapheat15.png",15)
-        dataviz.MapHeatmapSpeed("mapheat18.png",18)
-        dataviz.MapHeatmapSpeed("mapheat22.png",22)
-        dataviz.GraphHeatmap("graph.png", datareader)
+        for experiment in os.listdir(Folders.results_ray_path):
+            path_save_plots = os.path.join(Folders.path_save_plots,experiment)
 
-        #Results Visualization
-        dataviz.TableFinalResults("tableresults.png")
-        dataviz.BoxPlotResults()
-        dataviz.BoxPlotResultsLR()
-        dataviz.RegressionLRTruePredicted(datareader)
-        dataviz.HeatMapLoss("HeatMapLRLossMAE.png")
-        dataviz.RegressionLoss("Training_no_medium.png")
+            if not os.path.exists(path_save_plots):
+                os.makedirs(path_save_plots)
+
+            dfLR,dfSTCONV,dfCUSTOM = datareader.results(experiment)
+            dataviz = DataViz(path_data = Folders.path_data,
+                                path_save_plots = path_save_plots,
+                                path_processed_data = Folders.proccessed_data_path,
+                                path_results = Folders.results_path,
+                                graph_info_txt = Folders.graph_info_path,
+                                dfInfo = dfInfo,
+                                dfMeta = dfMeta,
+                                dfLR = dfLR,
+                                dfSTCONV = dfSTCONV,
+                                dfCUSTOM = dfCUSTOM)
+
+            # General Datavizualization
+            dataviz.BoxPlotSpeed("boxplot.png")
+            dataviz.MapPlotSensors("mapplotAll.png")
+            dataviz.MapPlotSensors("mapplotExperimental.png")
+            dataviz.MapPlotSensors("mapplotSmall.png")
+            dataviz.MapPlotSensors("mapplotMedium.png")
+            dataviz.PieChartRoadwayType("piechart.png")
+            dataviz.MapHeatmapSpeed("mapheat9.png",9)
+            dataviz.MapHeatmapSpeed("mapheat15.png",15)
+            dataviz.MapHeatmapSpeed("mapheat18.png",18)
+            dataviz.MapHeatmapSpeed("mapheat22.png",22)
+            dataviz.GraphHeatmap("graph.png", datareader)
+
+            #Results Visualization
+            dataviz.TableFinalResults("tableresults.png")
+            dataviz.BoxPlotResults()
+            dataviz.BoxPlotResultsLR()
+            dataviz.RegressionLRTruePredicted(datareader)
+            dataviz.HeatMapLoss("HeatMapLRLossMAE.png")
+            dataviz.RegressionLoss("Training_no_medium.png")

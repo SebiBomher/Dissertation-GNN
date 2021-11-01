@@ -6,6 +6,7 @@ import copy
 import pandas as pd
 import torch
 import os
+import shutil
 from ray import tune
 from torch import nn
 from torch.functional import Tensor
@@ -20,7 +21,7 @@ from torch.optim import Adam, RMSprop, Adamax, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from Scripts.DatasetClasses import CustomDataset, LinearRegressionDataset, STConvDataset
 from ray.tune.schedulers.async_hyperband import ASHAScheduler
-
+from datetime import datetime
 #endregion
 
 
@@ -90,8 +91,27 @@ class LossFunction():
 class Learn():
 
     #region Constructors & Properties
+    def InitGNN(self, param: dict, config: dict):
+        r"""
+            GNN Constructor
+            
+        """
+        self.epsilon = config["epsilon"]
+        self.sigma = config["sigma"]
+        self.optimizer_type = config["optimizer_type"]
+        self.nodes_size = config["nodes_size"]
+        self.model_type = config["model_type"]
+        self.train_ratio = param["train_ratio"]
+        self.test_ratio = param["test_ratio"]
+        self.val_ratio = param["val_ratio"]
+        self.learning_rate = param["learning_rate"]
+        self.EarlyStoppingPatience = param["EarlyStoppingPatience"]
+        self.nb_epoch = param["nb_epoch"]
+        self.datareader = param["datareader"]
+        self.num_features = param["num_features"]
+        self.device = Constants.device
 
-    def __init__(self, datareader: DataReader, model_type: ModelType):
+    def InitLR(self, datareader: DataReader, model_type: ModelType):
         r"""
             Linear Regression Constructor
             Args:
@@ -102,38 +122,18 @@ class Learn():
         self.model_type = model_type
         self.device = Constants.device
 
-    def __init__(self, param: dict, config: dict):
-        r"""
-            GNN Constructor
-            
-        """
-        self.epsilon = config["epsilon"]
-        self.sigma = config["sigma"]
-        self.optimizer_type = config["optimizer_type"]
-        self.train_ratio = param["train_ratio"]
-        self.test_ratio = param["test_ratio"]
-        self.val_ratio = param["val_ratio"]
-        self.learning_rate = param["learning_rate"]
-        self.EarlyStoppingPatience = param["EarlyStoppingPatience"]
-        self.nb_epoch = param["nb_epoch"]
-        self.nodes_size = param["nodes_size"]
-        self.datareader = param["datareader"]
-        self.num_features = param["num_features"]
-        self.model_type = param["model_type"]
-        self.device = Constants.device
-
+    def __init__(self):
+        return
     #endregion
 
     #region Instance Functions.
 
-    def __train(self, dfResults: pd.DataFrame):
+    def __train_val_and_test(self, experiment_name: str):
         r"""
             Training step in the training process
-            Args:
-                dfResults : pd.DataFrame, For results writing
-            Returns a model, the best at validation loss
+            Returns nothing
         """
-
+        dfResults = pd.DataFrame(columns=["Model", "Epsilon", "Sigma", "Size","Criterion", "Loss", "Epoch", "OptimizerType", "Trial", "TestOrVal"])
         self.model.train()
         best_val_loss = np.inf
         val_model = self.model
@@ -144,16 +144,14 @@ class Learn():
         edge_weight = self.train_dataset.get_edge_weight()
         for epoch in tqdm(range(self.nb_epoch)):
             loss = 0
-            iter = 0
-            for _, (x, y) in enumerate(dataloader):
+            for index, (x, y) in enumerate(dataloader):
                 X = x[0]
                 Y = y[0]
                 y_hat = self.model(X, edge_index, edge_weight)
-                loss += self.criterion(y_hat, Y)
-                iter += 1
+                loss += LossFunction.MAE(y_hat, Y)
 
             # Validation Step at epoch end
-            val_loss = self.__val(epoch, dfResults)
+            val_loss, dfResults = self.__val(dfResults, epoch)
             if val_loss < best_val_loss:
                 val_model = copy.deepcopy(self.model)
                 best_val_loss = val_loss
@@ -164,16 +162,31 @@ class Learn():
             if epoch_no_improvement == 0:
                 print("Early stopping at epoch: {0}".format(epoch))
                 break
-            loss = loss / (iter+1)
+            loss = loss / (index+1)
             self.scheduler.step(loss)
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
             print("Epoch {0} : Validation loss {1} ; Train loss {2};".format(
                 epoch, val_loss, loss))
-        return val_model
 
-    def __val(self, epoch: int, dfResults: pd.DataFrame):
+            # test step if this is the last epoch
+            # Save dataframe results
+            if epoch == self.nb_epoch - 1:
+                dfResults = self.__test(val_model, dfResults, epoch)
+                file_save = os.path.join(Folders.results_path, experiment_name, "{0}_{1}_{2}.csv".format(
+                    self.model_type.name, str(self.nodes_size.name), str(tune.get_trial_id())))
+                dfResults.to_csv(path_or_buf=file_save, index=False)
+
+            # Log to tune
+            with tune.checkpoint_dir(step=epoch) as checkpoint_dir:
+                path = os.path.join(checkpoint_dir, "checkpoint")
+                torch.save(
+                    (self.model.state_dict(), self.optimizer.state_dict()), path)
+
+            tune.report(loss=val_loss)
+
+    def __val(self, dfResults: pd.DataFrame, epoch: int):
         r"""
             Validation step in the training process
             Args:
@@ -197,34 +210,31 @@ class Learn():
                 loss += criterion(y_hat, Y)
                 if criterion == LossFunction.MAE:
                     MAE_loss += criterion(y_hat, Y)
-                results = {"Model": str(self.model_type.name),
-                           "Epsilon": str(self.epsilon),
-                           "sigma": str(self.sigma),
-                           "Size": str(self.node_size.name),
-                           "Criterion": str(criterion.__name__),
-                           "Loss": str(loss),
-                           "OptimizerType": self.optimizer_type,
-                           "TestOrVal": "Validation",
-                           "Trial": tune.get_trial_id()
-                           }
-                dfResults = dfResults.append(
-                    results, ignore_index=True)
+
             loss = loss / (index+1)
             loss = loss.item()
+
+            results = {"Model": str(self.model_type.name),
+                       "Epsilon": str(self.epsilon),
+                       "Sigma": str(self.sigma),
+                       "Size": str(self.nodes_size.name),
+                       "Criterion": str(criterion.__name__),
+                       "Loss": str(loss),
+                       "Epoch": str(epoch),
+                       "OptimizerType": self.optimizer_type.name,
+                       "TestOrVal": "Validation",
+                       "Trial": tune.get_trial_id()
+                       }
+            dfResults = dfResults.append(
+                results, ignore_index=True)
+
             if criterion == LossFunction.MAE:
                 MAE_loss = MAE_loss / (index+1)
                 MAE_loss = MAE_loss.item()
 
-        with tune.checkpoint_dir(step=epoch) as checkpoint_dir:
-            path = os.path.join(checkpoint_dir, "checkpoint")
-            torch.save(
-                (self.model.state_dict(), self.optimizer.state_dict()), path)
+        return MAE_loss, dfResults
 
-        tune.report(loss=MAE_loss)
-
-        return loss
-
-    def __test(self, best_model, dfResults: pd.DataFrame) -> None:
+    def __test(self, best_model, dfResults: pd.DataFrame, epoch: int) -> None:
         r"""
             Testing the GNN model
             Args:
@@ -239,7 +249,6 @@ class Learn():
             self.test_dataset, batch_size=1, shuffle=False, num_workers=0)
         edge_index = self.test_dataset.get_edge_index()
         edge_weight = self.test_dataset.get_edge_weight()
-        iter = 0
         MAE_loss = 0
         for criterion in LossFunction.Criterions():
             loss = 0
@@ -250,29 +259,32 @@ class Learn():
                 loss += criterion(y_hat, Y)
                 if criterion == LossFunction.MAE:
                     MAE_loss += criterion(y_hat, Y)
-                results = {"Model": str(self.model_type.name),
-                           "Epsilon": str(self.epsilon),
-                           "sigma": str(self.sigma),
-                           "Size": str(self.node_size.name),
-                           "Criterion": str(criterion.__name__),
-                           "Loss": str(loss),
-                           "OptimizerType": self.optimizer_type,
-                           "TestOrVal": "Test",
-                           "Trial": tune.get_trial_id()
-                           }
-                dfResults = dfResults.append(
-                    results, ignore_index=True)
+
             loss = loss / (index+1)
             loss = loss.item()
+
+            results = {"Model": str(self.model_type.name),
+                       "Epsilon": str(self.epsilon),
+                       "Sigma": str(self.sigma),
+                       "Size": str(self.nodes_size.name),
+                       "Criterion": str(criterion.__name__),
+                       "Loss": str(loss),
+                       "Epoch": str(epoch),
+                       "OptimizerType": self.optimizer_type.name,
+                       "TestOrVal": "Test",
+                       "Trial": tune.get_trial_id()
+                       }
+            dfResults = dfResults.append(
+                results, ignore_index=True)
+
             if criterion == LossFunction.MAE:
                 MAE_loss = MAE_loss / (index+1)
                 MAE_loss = MAE_loss.item()
 
-        MAE_loss = MAE_loss / (iter+1)
-        MAE_loss = MAE_loss.item()
         print("Best trial test set loss: {}".format(MAE_loss))
+        return dfResults
 
-    def __LRTrainAndTest(self) -> None:
+    def __LRTrainAndTest(self, experiment_name: str) -> None:
         r"""
             Trains and tests Linear Regression
             No Arguments.
@@ -280,8 +292,18 @@ class Learn():
             Returns None.
         """
         parameters = {
-            'normalize': [True],
+            'fit_intercept': [True],
         }
+
+        # nr_files = len([name for name in os.listdir(Folders.checkpoint_LR_path) if os.path.isfile(os.path.join(Folders.checkpoint_LR_path, name))])
+
+        # if nr_files == DatasetSizeNumber.Medium.value * 4:
+        #     return
+        results_folder = os.path.join(
+            Folders.results_ray_path, experiment_name, Constants.checkpoint_LR_folder)
+
+        if not os.path.exists(results_folder):
+            os.makedirs(results_folder)
 
         dfResults = pd.DataFrame(columns=["Node_Id", "Criterion", "Loss"])
         lr_model = LinearRegression()
@@ -290,39 +312,26 @@ class Learn():
             best_model = clf.fit(X_train, Y_train)
             y_pred = best_model.predict(X_test)
             for criterion in LossFunction.Criterions():
-                loss = self.criterion(torch.FloatTensor(Y_test).to(
+                loss = criterion(torch.FloatTensor(Y_test).to(
                     self.train_dataset.device), torch.FloatTensor(y_pred).to(self.train_dataset.device))
                 loss = loss.item()
                 result = {"Node_Id": node_id,
                           "Criterion": criterion.__name__, "Loss": str(loss)}
                 dfResults = dfResults.append(result, ignore_index=True)
+                if criterion == LossFunction.MAE:
+                    print("Best trial test set loss {0} : {1} for node id : {2}".format(
+                        criterion.__name__, loss, node_id))
+                    name_model = os.path.join(results_folder, "model_node_{0}_{1}_{2}.pickle".format(
+                        node_id, criterion.__name__, loss))
+                    with open(name_model, 'wb') as handle:
+                        pickle.dump(best_model, handle,
+                                    protocol=pickle.HIGHEST_PROTOCOL)
+        folder_save = os.path.join(Folders.results_path, experiment_name)
 
-                print("Best trial test set loss {0} : {1} for node id : {2}".format(
-                    criterion.__name__, loss, node_id))
-                if not os.path.exists(Folders.checkpoint_LR_path):
-                    os.makedirs(Folders.checkpoint_LR_path)
-                name_model = os.path.join(Folders.checkpoint_LR_path, "model_node_{0}_{1}_{2}.pickle".format(
-                    node_id, criterion.__name__, loss))
-                with open(name_model, 'wb') as handle:
-                    pickle.dump(best_model, handle,
-                                protocol=pickle.HIGHEST_PROTOCOL)
-        file_save = os.path.join(
-            Constants.results_folder, "LinearRegression.csv")
-        dfResults.to_csv(path_or_buf=file_save, index=False)
+        if not os.path.exists(folder_save):
+            os.makedirs(folder_save)
 
-    def __train_val_and_test(self) -> None:
-        r"""
-            Trains and tests a model.
-            No Arguments.
-            Instance Function.
-            Returns None.
-        """
-        dfResults = pd.DataFrame(
-            columns=["Model", "Epsilon", "Sigma", "Size", "Criterion", "Loss", "OptimizerType", "Trial", "TestOrVal"])
-        best_model = self.__train(dfResults)
-        self.__test(best_model, dfResults)
-        file_save = os.path.join(
-            Constants.results_folder, "{0}_{1}_{2}.csv".format(self.model_type.name, str(self.nodes_size.name), tune.get_trial_id()))
+        file_save = os.path.join(folder_save, "LinearRegression.csv")
         dfResults.to_csv(path_or_buf=file_save, index=False)
 
     def __set_for_train(self) -> None:
@@ -338,7 +347,6 @@ class Learn():
                 train_ratio=self.train_ratio,
                 test_ratio=self.test_ratio,
                 val_ratio=self.val_ratio,
-                time_steps=1,
                 epsilon=self.epsilon,
                 sigma=self.sigma,
                 nodes_size=self.nodes_size,
@@ -385,12 +393,6 @@ class Learn():
         self.scheduler = ReduceLROnPlateau(
             self.optimizer, mode='min', factor=0.1, patience=5, threshold=0.00000001, threshold_mode='abs')
 
-        if self.checkpoint_dir:
-            checkpoint = os.path.join(self.checkpoint_dir, "checkpoint")
-            model_state, optimizer_state = torch.load(checkpoint)
-            self.model.load_state_dict(model_state)
-            self.optimizer.load_state_dict(optimizer_state)
-
     #endregion
 
     #region Class Functions
@@ -403,37 +405,25 @@ class Learn():
             Class Function.
             Returns None.
         """
-        STConvDataset.__save_dataset(datareader)
-        CustomDataset.__save_dataset(datareader)
-        LinearRegressionDataset.__save_dataset(datareader)
+        STConvDataset.save_dataset(datareader)
+        CustomDataset.save_dataset(datareader)
+        LinearRegressionDataset.save_dataset(datareader)
 
-    def __startCUSTOM(config, param) -> None:
+    def __start(config, param, checkpoint_dir=None) -> None:
         r"""
-            Function to start training Custom
+            Function to start training
             Class Function
             Args:
                 param : dict, contains learning_rate, num_features, EarlyStoppingPatience, nb_epoch, datareader, nodes_size, train_ratio, val_ratio, test_ratio, criterion, model_type
                 config : dict, contains K, epsilon, optimizer_type, sigma
             Returns None
         """
-        learn = Learn(param, config)
+        learn = Learn()
+        learn.InitGNN(param, config)
         learn.__set_for_train()
-        learn.__train_val_and_test()
+        learn.__train_val_and_test(param["experiment_name"])
 
-    def __startSTCONV(config, param) -> None:
-        r"""
-            Function to start training STCONV
-            Class Function
-            Args:
-                param : dict, contains learning_rate, num_features, EarlyStoppingPatience, nb_epoch, datareader, nodes_size, train_ratio, val_ratio, test_ratio, criterion, model_type
-                config : dict, contains K, epsilon, optimizer_type, sigma
-            Returns None
-        """
-        learn = Learn(param, config)
-        learn.__set_for_train()
-        learn.__train_val_and_test()
-
-    def startLR(datareader: DataReader) -> None:
+    def startLR(datareader: DataReader, experiment_name: str) -> None:
         r"""
             Function to start training Linear Regression
             Class Function.
@@ -441,12 +431,16 @@ class Learn():
                 datareader : DataReader, datareader for data reading
             Returns None.
         """
-        learn = Learn(datareader=datareader,
-                      model_type=ModelType.LinearRegression)
+        learn = Learn()
+        learn.InitLR(datareader=datareader,
+                     model_type=ModelType.LinearRegression)
         learn.__set_for_train()
-        learn.__LRTrainAndTest()
+        learn.__LRTrainAndTest(experiment_name=experiment_name)
 
-    def HyperParameterTuning(datasetsize: DatasetSize, model: ModelType, datareader: DataReader) -> None:
+    def trail_dirname_creator(trial):
+        return f"{trial.config['model_type'].name}_{trial.config['nodes_size'].name}_{datetime.now().strftime('%d_%m_%Y-%H_%M_%S')}"
+
+    def HyperParameterTuning(datasetsize: DatasetSize, model: ModelType, datareader: DataReader, experiment_name: str) -> None:
         r"""
             Function for hyper parameter tuning, it receives a datasetsize, model type, data reader and a loss function as a criterion, returns nothing.
             Creates parameters for the function for the hyper parameter tuning.
@@ -458,10 +452,6 @@ class Learn():
             Class Function.
             Returns None.
         """
-        if ModelType == ModelType.Custom:
-            learnMethod = Learn.__startCUSTOM
-        else:
-            learnMethod = Learn.__startSTCONV
 
         scheduler = ASHAScheduler(
             max_t=Constants.nb_epoch,
@@ -474,29 +464,37 @@ class Learn():
             "EarlyStoppingPatience": Constants.EarlyStoppingPatience,
             "nb_epoch": Constants.nb_epoch,
             "datareader": datareader,
-            "nodes_size": datasetsize,
             "train_ratio": Constants.train_ratio,
             "val_ratio": Constants.val_ratio,
             "test_ratio": Constants.test_ratio,
-            "model_type": model
+            "experiment_name": experiment_name
         }
 
         config = {
             "K": tune.choice([1, 3, 5, 7]),
             "epsilon": tune.choice([0.1, 0.3, 0.5, 0.7]),
             "optimizer_type": tune.choice([OptimizerType.Adam, OptimizerType.AdamW, OptimizerType.Adamax, OptimizerType.RMSprop]),
-            "sigma": tune.choice([1, 3, 5, 10])
+            "sigma": tune.choice([1, 3, 5, 10]),
+            "model_type": tune.choice([model]),
+            "nodes_size": tune.choice([datasetsize])
         }
 
+        directory_experiment_ray = os.path.join(
+            Folders.results_ray_path, experiment_name)
+
+        Learn.__start.__name__ = f"{model.name}_{datasetsize.name}"
+
         result = tune.run(
-            tune.with_parameters(learnMethod, param=param),
-            local_dir=Folders.results_ray_path,
+            tune.with_parameters(Learn.__start, param=param),
+            local_dir=directory_experiment_ray,
+            trial_dirname_creator=Learn.trail_dirname_creator,
             resources_per_trial={"cpu": 8, "gpu": 1},
             config=config,
             metric="loss",
             mode="min",
             num_samples=Constants.num_samples,
-            scheduler=scheduler
+            scheduler=scheduler,
+            verbose=0
         )
 
         best_trial = result.get_best_trial("loss", "min", "last")
@@ -505,4 +503,28 @@ class Learn():
         print("Best trial for {} model final validation loss: {}".format(
             model.name, best_trial.last_result["loss"]))
 
+    def Run():
+        r"""
+            Run Method. Starts the learning procedure for all models and datasets
+        """
+        Folders().CreateFolders()
+        datareader = DataReader()
+
+        experiment_name = "Experiment_{0}".format(
+            datetime.now().strftime("%d_%m_%Y-%H_%M_%S"))
+        directory_experiment_ray = os.path.join(
+            Folders.results_ray_path, experiment_name)
+
+        if not os.path.exists(directory_experiment_ray):
+            os.makedirs(directory_experiment_ray)
+
+        Learn.set_data(datareader=datareader)
+
+        Learn.startLR(datareader=datareader, experiment_name=experiment_name)
+
+        for datasize in DatasetSize:
+            for model in ModelType:
+                if model != ModelType.LinearRegression:
+                    Learn.HyperParameterTuning(
+                        datasetsize=datasize, model=model, datareader=datareader, experiment_name=experiment_name)
     #endregion
