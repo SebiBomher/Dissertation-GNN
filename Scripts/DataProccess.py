@@ -9,7 +9,7 @@ from typing import Tuple, Union
 from geopy.distance import geodesic
 from glob import glob
 from sklearn.preprocessing import normalize
-from Scripts.Utility import DatasetSize, DatasetSizeNumber, Folders
+from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
 
 #endregion
 
@@ -400,11 +400,13 @@ class Graph():
         good_nodes = self.__data_reader.good_nodes
         sizes_to_add = Graph.__get_tuple_to_add_nodes()
         for size in sizes_to_add:
-            if size != DatasetSize.Experimental:
+            if size == DatasetSize.Experimental:
+                nodes = Constants.nodes_Experimental
+            elif size == DatasetSize.Tiny:
+                nodes = Constants.nodes_Tiny
+            else:
                 number_of_nodes =  Graph.get_number_nodes_by_size(size)
                 nodes = sample(good_nodes, number_of_nodes)
-            else:
-                nodes = [718292,769496,718291,718290,764567,774279,774278,764671]
             name_nodes = os.path.join(self.__path_processed_data,'nodes_{0}.npy'.format(str(size.name)))
             np.save(name_nodes,nodes)
 
