@@ -229,9 +229,9 @@ class LinearRegressionDataset():
     #endregion
 
 
-class CustomDataset(DatasetClass):
+class LSTMDataset(DatasetClass):
     r"""
-        Class for data manipulation for the Custom model
+        Class for data manipulation for the LSTM model
     """
 
     #region Constructor & Properites
@@ -249,7 +249,7 @@ class CustomDataset(DatasetClass):
         """
         super().__init__(sigma, epsilon, size, datareader, device, time_start, time_stop)
         self.proccessed_data_path_model = os.path.join(
-            self.proccessed_data_path, "Custom")
+            self.proccessed_data_path, "LSTM")
         self.transform = transforms.Compose([transforms.ToTensor()])
         self.__check_temporal_consistency()
         self.__set_snapshot_count()
@@ -280,7 +280,7 @@ class CustomDataset(DatasetClass):
         time_train = int(train_ratio*self.snapshot_count)
         time_test = time_train + int(test_ratio*self.snapshot_count)
 
-        train_iterator = CustomDataset(self.sigma,
+        train_iterator = LSTMDataset(self.sigma,
                                        self.epsilon,
                                        self.size,
                                        self.data_reader,
@@ -288,7 +288,7 @@ class CustomDataset(DatasetClass):
                                        0,
                                        time_train + 1)
 
-        val_iterator = CustomDataset(self.sigma,
+        val_iterator = LSTMDataset(self.sigma,
                                      self.epsilon,
                                      self.size,
                                      self.data_reader,
@@ -296,7 +296,7 @@ class CustomDataset(DatasetClass):
                                      time_train + 1,
                                      time_test)
 
-        test_iterator = CustomDataset(self.sigma,
+        test_iterator = LSTMDataset(self.sigma,
                                       self.epsilon,
                                       self.size,
                                       self.data_reader,
@@ -327,12 +327,12 @@ class CustomDataset(DatasetClass):
 
         X, Y = datareader.get_clean_data_by_nodes(size)
 
-        X = CustomDataset.__arrange_data(
+        X = LSTMDataset.__arrange_data(
             X, Graph.get_number_nodes_by_size(size))
-        Y = CustomDataset.__arrange_data(
+        Y = LSTMDataset.__arrange_data(
             Y, Graph.get_number_nodes_by_size(size))
         proccessed_data_path_model = os.path.join(
-            Folders.proccessed_data_path, "Custom")
+            Folders.proccessed_data_path, "LSTM")
         if not os.path.exists(proccessed_data_path_model):
             os.makedirs(proccessed_data_path_model)
 
@@ -417,13 +417,13 @@ class CustomDataset(DatasetClass):
         r"""
             Function to determine wheter to start saving data
         """
-        return len(CustomDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "Custom"))) > 0
+        return len(LSTMDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "LSTM"))) > 0
 
-    def get_dataset_Custom(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, datareader: DataReader, device: str):
+    def get_dataset_LSTM(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, datareader: DataReader, device: str):
         r"""
             Function used in Learn to get train validation and test datasets for training
         """
-        DataTraffic = CustomDataset(
+        DataTraffic = LSTMDataset(
             sigma, epsilon, nodes_size, datareader, device)
         train, val, test = DataTraffic.__split_dataset(
             train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
@@ -447,12 +447,12 @@ class CustomDataset(DatasetClass):
             Function to save the dataset
         """
         proccessed_data_path_model = os.path.join(
-            Folders.proccessed_data_path, "Custom")
-        to_create = CustomDataset.__get_tuple_to_add(
+            Folders.proccessed_data_path, "LSTM")
+        to_create = LSTMDataset.__get_tuple_to_add(
             proccessed_data_path_model)
         for tuple in to_create:
             size = tuple[0]
-            CustomDataset.__save_proccess_data(data_reader, size)
+            LSTMDataset.__save_proccess_data(data_reader, size)
 
     #endregion
 

@@ -29,7 +29,7 @@ class DataReader():
 
         Instance Functions:
             start(), Starts the reading procedure
-            results(), Reads the csv results and combines the Custom and STCONV results into 2 csv files
+            results(), Reads the csv results and combines the LSTM and STCONV results into 2 csv files
             visualization(), Reads the Metadata information and Data information for data visualization
             get_clean_data_by_nodes(),
             __get_number_of_nodes(), set total number of nodes (nb_days) from Metadata (may contain empty nodes)
@@ -58,7 +58,7 @@ class DataReader():
         self.nodes_location = []
         self.nb_days = 0
         if (not os.path.isdir(os.path.join(self.__path_proccessed_data,"STCONV")) or 
-        not os.path.isdir(os.path.join(self.__path_proccessed_data,"Custom")) or 
+        not os.path.isdir(os.path.join(self.__path_proccessed_data,"LSTM")) or 
         not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeWeight")) or
         not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeIndex")) or
         not os.path.isdir(os.path.join(self.__path_proccessed_data,"LinearRegression"))):
@@ -70,7 +70,7 @@ class DataReader():
 
     def results(self,experiment_name : str)-> Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]:
         r"""
-            Reads the csv results and combines the Custom and STCONV results into 2 csv files.
+            Reads the csv results and combines the LSTM and STCONV results into 2 csv files.
             Instance Function.
             No Arguments.
             Returns a Tuple of 3 pandas Dataframe, one for each model.
@@ -88,18 +88,18 @@ class DataReader():
                     dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
             dataframeInfo.to_csv(STCONVFile)
 
-        CustomFile = os.path.join(experiment_path,"CUSTOM.csv")
-        if not(os.path.exists(CustomFile)):
+        LSTMFile = os.path.join(experiment_path,"LSTM.csv")
+        if not(os.path.exists(LSTMFile)):
             dataframeInfo = pd.DataFrame(columns = columnsInfo)
-            CustomFiles = os.path.join(experiment_path,"CUSTOM*_*.csv")
-            for file in glob(CustomFiles):
+            LSTMFiles = os.path.join(experiment_path,"LSTM*_*.csv")
+            for file in glob(LSTMFiles):
                 with open(file) as f:
                     dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
-            dataframeInfo.to_csv(CustomFile)
+            dataframeInfo.to_csv(LSTMFile)
 
         dfSTCONV = pd.read_csv(os.path.join(experiment_path,"STCONV.csv"))
-        dfCUSTOM = pd.read_csv(os.path.join(experiment_path,"CUSTOM.csv"))
-        return dfLR,dfSTCONV,dfCUSTOM
+        dfLSTM = pd.read_csv(os.path.join(experiment_path,"LSTM.csv"))
+        return dfLR,dfSTCONV,dfLSTM
 
     def start(self) -> None:
         r"""
