@@ -404,6 +404,10 @@ class Graph():
                 nodes = Constants.nodes_Experimental
             elif size == DatasetSize.Tiny:
                 nodes = Constants.nodes_Tiny
+            elif size == DatasetSize.ExperimentalManual:
+                nodes = Constants.nodes_Experimental
+            elif size == DatasetSize.TinyManual:
+                nodes = Constants.nodes_Tiny
             else:
                 number_of_nodes =  Graph.get_number_nodes_by_size(size)
                 nodes = sample(good_nodes, number_of_nodes)
@@ -438,34 +442,48 @@ class Graph():
         """
 
         nodes = Graph.get_nodes_ids_by_size(size)
-        edge_index = []
-        edge_weight = []
-        nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
-        self.num_nodes = len(nodes_location)
-        print("Saving graph with configuration : epsilon = {0}, sigma = {1}, size = {2}".format(str(epsilon),str(sigma),str(size.name)))
-        for i in range(len(nodes_location) - 1):
-            for j in range(i,len(nodes_location) - 1):
-                if i != j:
-                    p1 = (nodes_location[i][1],nodes_location[i][2])
-                    p2 = (nodes_location[j][1],nodes_location[j][2])
-                    weight = Graph.__get_adjency_matrix_weight(p1,p2,epsilon,sigma)
-                    if weight > 0:
-                        edge_index.append([i,j])
-                        edge_weight.append(weight)
-
-        edge_index = np.transpose(edge_index)
         name_folder_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight')
         name_folder_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex')
+
         if not os.path.exists(name_folder_weight):
             os.makedirs(name_folder_weight)
 
         if not os.path.exists(name_folder_index):
             os.makedirs(name_folder_index)
-        
-        name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-        name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-        np.save(name_index,edge_index)
-        np.save(name_weight,edge_weight)
+
+        if size == DatasetSize.ExperimentalManual:
+            edge_index = Constants.edge_index_Experimental_manual
+            edge_weight = Constants.edge_weight_Experimental_manual
+        elif size == DatasetSize.TinyManual:
+            edge_index = Constants.edge_index_Tiny_manual
+            edge_weight = Constants.edge_weight_Tiny_manual
+        else:
+            edge_index = []
+            edge_weight = []
+            nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
+            self.num_nodes = len(nodes_location)
+            print("Saving graph with configuration : epsilon = {0}, sigma = {1}, size = {2}".format(str(epsilon),str(sigma),str(size.name)))
+            for i in range(len(nodes_location) - 1):
+                for j in range(i,len(nodes_location) - 1):
+                    if i != j:
+                        p1 = (nodes_location[i][1],nodes_location[i][2])
+                        p2 = (nodes_location[j][1],nodes_location[j][2])
+                        weight = Graph.__get_adjency_matrix_weight(p1,p2,epsilon,sigma)
+                        if weight > 0:
+                            edge_index.append([i,j])
+                            edge_weight.append(weight)
+
+            edge_index = np.transpose(edge_index)
+            name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+            name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+            np.save(name_index,edge_index)
+            np.save(name_weight,edge_weight)
+
+        if size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual:
+            name_weight = os.path.join(name_folder_weight,'weight_{0.npy'.format(str(size.name)))
+            name_index = os.path.join(name_folder_index,'index_{0}.npy'.format(str(size.name)))
+            np.save(name_index,edge_index)
+            np.save(name_weight,edge_weight)
 
     def __set_graph_info(self) -> None:
         r"""
@@ -474,11 +492,18 @@ class Graph():
             No Arguments.
             Returns Nothing.
         """
-        name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__sigma),str(self.__size.name)))
-        self.edge_weight = np.load(name_weight)
+        if self.__size == DatasetSize.ExperimentalManual or self.__size == DatasetSize.TinyManual:
+            name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}.npy'.format(str(self.__size.name)))
+            self.edge_weight = np.load(name_weight)
 
-        name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__sigma),str(self.__size.name)))
-        self.edge_index = np.load(name_index)
+            name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}.npy'.format(str(self.__size.name)))
+            self.edge_index = np.load(name_index)
+        else:
+            name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__sigma),str(self.__size.name)))
+            self.edge_weight = np.load(name_weight)
+
+            name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__sigma),str(self.__size.name)))
+            self.edge_index = np.load(name_index)
 
     #endregion
 
@@ -548,6 +573,12 @@ class Graph():
             return DatasetSizeNumber.Small.value
         elif size == DatasetSize.Experimental:
             return DatasetSizeNumber.Experimental.value
+        elif size == DatasetSize.ExperimentalManual:
+            return DatasetSizeNumber.Experimental.value
+        elif size == DatasetSize.Tiny:
+            return DatasetSizeNumber.Tiny.value
+        elif size == DatasetSize.TinyManual:
+            return DatasetSizeNumber.Tiny.value
 
     def __get_adjency_matrix_weight(p1 : tuple,p2 : tuple,epsilon : float ,sigma : int) -> float:
         r"""

@@ -6,7 +6,6 @@ import torch
 import numpy as np
 import glob
 from Scripts.DataProccess import DataReader, Graph
-from Scripts.Models import CustomModel
 from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
@@ -436,8 +435,9 @@ class CustomDataset(DatasetClass):
         """
         to_create = []
         for size in DatasetSize:
-            name_folder = os.path.join(
-                proccessed_data_path, 'Data_{0}'.format(str(size.name)))
+            if size != DatasetSize.TinyManual or size != DatasetSize.ExperimentalManual:
+                name_folder = os.path.join(
+                    proccessed_data_path, 'Data_{0}'.format(str(size.name)))
             if not os.path.exists(name_folder):
                 to_create.append([size])
         return to_create
@@ -539,7 +539,7 @@ class STConvDataset(DatasetClass):
             X, time_steps, nodes_size)
         Y = STConvDataset.__arrange_data_for_time_step(
             Y, time_steps, nodes_size)
-
+        
         new_size = (int)(interval_per_day * datareader.nb_days / batch_size)
         data_size = len(X)
         if new_size * batch_size != data_size:
@@ -547,7 +547,6 @@ class STConvDataset(DatasetClass):
             X = X[:data_size-difference]
             Y = Y[:data_size-difference]
             new_size -= 1
-
         X = np.array(X).reshape(new_size, batch_size,
                                 time_steps, nodes_size, 2)
         Y = np.array(Y).reshape(new_size, batch_size,
@@ -582,8 +581,9 @@ class STConvDataset(DatasetClass):
     def __get_tuple_to_add(proccessed_data_path):
         to_create = []
         for size in DatasetSize:
-            name_folder = os.path.join(proccessed_data_path, 'Data_{0}'.format(
-                str(size.name)))
+            if size != DatasetSize.TinyManual or size != DatasetSize.ExperimentalManual:
+                name_folder = os.path.join(proccessed_data_path, 'Data_{0}'.format(
+                    str(size.name)))
             if not os.path.exists(name_folder):
                 to_create.append([size])
         return to_create

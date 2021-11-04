@@ -13,18 +13,18 @@ from torch import nn
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
 from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, ModelType, OptimizerType, Folders
-from Scripts.Models import CustomModel, STConvModel
+from Scripts.Models import GGRUModel, LSTMModel, STConvModel
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GridSearchCV
 from Scripts.DataProccess import DataReader,  Graph
 from tqdm import tqdm
 from torch.optim import Adam, RMSprop, Adamax, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from Scripts.DatasetClasses import CustomDataset, LinearRegressionDataset, STConvDataset
+from Scripts.DatasetClasses import LSTMDataset, LinearRegressionDataset, STConvDataset
 from ray.tune.schedulers.async_hyperband import ASHAScheduler
 from datetime import datetime
 from statsmodels.tsa.arima.model import ARIMA
-from statsmodels.tsa.statespace.varmax import VARMAX
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 #endregion
 
@@ -288,24 +288,24 @@ class Learn():
         print("Best trial test set loss: {}".format(MAE_loss))
         return dfResults
 
-    def __VARMAXTrainAndTest(self, experiment_name : str) -> None:
+    def __SARIMATrainAndTest(self, experiment_name : str) -> None:
         r"""
-            Trains and tests VARMAX
+            Trains and tests SARIMA
             No Arguments.
             Instance Function.
             Returns None.
         """
 
         results_folder = os.path.join(
-            Folders.results_ray_path, experiment_name, Constants.checkpoin_VARMAX_folder)
+            Folders.results_ray_path, experiment_name, Constants.checkpoin_SARIMA_folder)
 
         if not os.path.exists(results_folder):
             os.makedirs(results_folder)
         dfResults = pd.DataFrame(columns=["Node_Id", "Criterion", "Loss"])
         for _, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(self.train_dataset):
-            VARMAX_model = VARMAX(Y_train)
-            VARMAX_model = VARMAX_model.fit()
-            Y_pred = VARMAX_model.predict(1, len(Y_test))
+            SARIMAX_model = SARIMAX(Y_train, order=(1, 1, 1))
+            SARIMAX_model = SARIMAX_model.fit()
+            Y_pred = SARIMAX_model.predict(len(Y_train), len(Y_train))
             for criterion in LossFunction.Criterions():
                 loss = criterion(torch.FloatTensor(Y_test).to(
                     self.train_dataset.device), torch.FloatTensor(Y_pred).to(self.train_dataset.device))
@@ -319,7 +319,7 @@ class Learn():
                     name_model = os.path.join(results_folder, "model_node_{0}_{1}_{2}.pickle".format(
                         node_id, criterion.__name__, loss))
                     with open(name_model, 'wb') as handle:
-                        pickle.dump(VARMAX_model, handle,
+                        pickle.dump(SARIMAX_model, handle,
                                     protocol=pickle.HIGHEST_PROTOCOL)
 
         folder_save = os.path.join(Folders.results_path, experiment_name)
@@ -442,8 +442,8 @@ class Learn():
                                      hidden_channels=Constants.hidden_channels,
                                      kernel_size=1,
                                      K=1)
-        elif self.model_type == ModelType.Custom:
-            self.train_dataset, self.validation_dataset, self.test_dataset = CustomDataset.get_dataset_Custom(
+        elif self.model_type == ModelType.LSTM:
+            self.train_dataset, self.validation_dataset, self.test_dataset = LSTMDataset.get_dataset_LSTM(
                 train_ratio=self.train_ratio,
                 test_ratio=self.test_ratio,
                 val_ratio=self.val_ratio,
@@ -452,7 +452,19 @@ class Learn():
                 nodes_size=self.nodes_size,
                 datareader=self.datareader,
                 device=self.device)
-            self.model = CustomModel(node_features=self.num_features, K=3)
+            self.model = LSTMModel(node_features=self.num_features, K=3)
+
+        elif self.model_type == ModelType.GRU:
+            self.train_dataset, self.validation_dataset, self.test_dataset = LSTMDataset.get_dataset_LSTM(
+                train_ratio=self.train_ratio,
+                test_ratio=self.test_ratio,
+                val_ratio=self.val_ratio,
+                epsilon=self.epsilon,
+                sigma=self.sigma,
+                nodes_size=self.nodes_size,
+                datareader=self.datareader,
+                device=self.device)
+            self.model = GGRUModel(node_features=self.num_features, K=3)
 
         elif self.model_type == ModelType.LinearRegression:
             self.train_dataset = LinearRegressionDataset(self.datareader)
@@ -489,7 +501,7 @@ class Learn():
             Returns None.
         """
         STConvDataset.save_dataset(datareader)
-        CustomDataset.save_dataset(datareader)
+        LSTMDataset.save_dataset(datareader)
         LinearRegressionDataset.save_dataset(datareader)
 
     def __start(config, param, checkpoint_dir=None) -> None:
@@ -522,8 +534,8 @@ class Learn():
             learn.__LRTrainAndTest(experiment_name=experiment_name)
         elif model_type == ModelType.ARIMA:
             learn.__ARIMATrainAndTest(experiment_name=experiment_name)
-        elif model_type == ModelType.VARMAX:
-            learn.__VARMAXTrainAndTest(experiment_name=experiment_name)
+        elif model_type == ModelType.SARIMA:
+            learn.__SARIMATrainAndTest(experiment_name=experiment_name)
 
     def trail_dirname_creator(trial):
         return f"{trial.config['model_type'].name}_{trial.config['nodes_size'].name}_{datetime.now().strftime('%d_%m_%Y-%H_%M_%S')}"
@@ -608,13 +620,13 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
-        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
-        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.VARMAX)
+        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
+        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.SARIMA)
 
-        for datasize in DatasetSize:
-            for model in ModelType:
-                if model != ModelType.LinearRegression:
-                    Learn.HyperParameterTuning(
-                        datasetsize=datasize, model=model, datareader=datareader, experiment_name=experiment_name)
+        # for datasize in DatasetSize:
+        #     for model in ModelType:
+        #         if model != ModelType.LinearRegression or model != ModelType.ARIMA or model != ModelType.SARIMA:
+        #             Learn.HyperParameterTuning(
+        #                 datasetsize=datasize, model=model, datareader=datareader, experiment_name=experiment_name)
     #endregion
