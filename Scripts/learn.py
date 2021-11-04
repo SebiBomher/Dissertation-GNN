@@ -620,13 +620,29 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
         Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.SARIMA)
 
-        # for datasize in DatasetSize:
-        #     for model in ModelType:
-        #         if model != ModelType.LinearRegression or model != ModelType.ARIMA or model != ModelType.SARIMA:
-        #             Learn.HyperParameterTuning(
-        #                 datasetsize=datasize, model=model, datareader=datareader, experiment_name=experiment_name)
+        for datasize in DatasetSize:
+            for model in ModelType:
+                if model != ModelType.LinearRegression and model != ModelType.ARIMA and model != ModelType.SARIMA:
+                    Learn.HyperParameterTuning(
+                        datasetsize=datasize, model=model, datareader=datareader, experiment_name=experiment_name)
+    
+    def TestRun():
+        Folders().CreateFolders()
+        datareader = DataReader()
+
+        experiment_name = "Experiment_{0}".format(
+            datetime.now().strftime("%d_%m_%Y-%H_%M_%S"))
+        directory_experiment_ray = os.path.join(
+            Folders.results_ray_path, experiment_name)
+
+        if not os.path.exists(directory_experiment_ray):
+            os.makedirs(directory_experiment_ray)
+
+        Learn.set_data(datareader=datareader)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalManual, model=ModelType.LSTM, datareader=datareader, experiment_name=experiment_name)
     #endregion
+    

@@ -480,7 +480,7 @@ class Graph():
             np.save(name_weight,edge_weight)
 
         if size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual:
-            name_weight = os.path.join(name_folder_weight,'weight_{0.npy'.format(str(size.name)))
+            name_weight = os.path.join(name_folder_weight,'weight_{0}.npy'.format(str(size.name)))
             name_index = os.path.join(name_folder_index,'index_{0}.npy'.format(str(size.name)))
             np.save(name_index,edge_index)
             np.save(name_weight,edge_weight)
@@ -544,8 +544,12 @@ class Graph():
         for epsilon in Graph.epsilon_array:
             for sigma in Graph.sigma_array:
                 for size in DatasetSize:
-                    name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-                    name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+                    if size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual:
+                        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}.npy'.format(str(size.name)))
+                        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}.npy'.format(str(size.name)))
+                    else:
+                        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+                        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
                     if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
                         list_to_add.append([epsilon,sigma,size])
         return list_to_add
