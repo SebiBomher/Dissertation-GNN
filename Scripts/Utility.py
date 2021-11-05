@@ -1,9 +1,7 @@
 from datetime import datetime
 import os
 from enum import Enum
-
 import numpy as np
-
 
 class Constants():
     r"""
@@ -97,7 +95,7 @@ class DatasetSizeNumber(Enum):
             Small = 120
             Experimental = 5
     """
-
+    All = 2789
     Medium = 480
     Small = 120
     Tiny = 50
@@ -117,9 +115,11 @@ class DatasetSize(Enum):
     Tiny = 1
     ExperimentalManual = 2
     TinyManual = 3
+    ExperimentalLR = 2
+    TinyLR = 3
     Small = 4
     Medium = 5
-
+    All = 6
 
 class ModelType(Enum):
     r"""

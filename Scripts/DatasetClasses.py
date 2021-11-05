@@ -9,6 +9,7 @@ from Scripts.DataProccess import DataReader, Graph
 from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
 
 #endregion
 
@@ -132,7 +133,7 @@ class LinearRegressionDataset():
             Instance Function
             Returns the next __getitem__
         """
-        if self.t < DatasetSizeNumber.Medium.value:
+        if self.t < DatasetSizeNumber.All.value:
             snapshot = self.__getitem__(self.t)
             self.t = self.t + 1
             return snapshot
@@ -191,14 +192,14 @@ class LinearRegressionDataset():
         proccessed_data_path_model = os.path.join(
             Folders.proccessed_data_path, "LinearRegression")
 
-        X, Y = datareader.get_clean_data_by_nodes(DatasetSize.Medium)
+        X, Y = datareader.get_clean_data_by_nodes(DatasetSize.All)
 
         X = LinearRegressionDataset.__arrange_data(
-            X, DatasetSizeNumber.Medium.value)
+            X, DatasetSizeNumber.All.value)
         Y = LinearRegressionDataset.__arrange_data(
-            Y, DatasetSizeNumber.Medium.value)
+            Y, DatasetSizeNumber.All.value)
 
-        nodes_ids = Graph.get_nodes_ids_by_size(DatasetSize.Medium)
+        nodes_ids = Graph.get_nodes_ids_by_size(DatasetSize.All)
 
         if not os.path.exists(proccessed_data_path_model):
             os.makedirs(proccessed_data_path_model)
@@ -225,6 +226,55 @@ class LinearRegressionDataset():
             Function to determine wheter to start saving data
         """
         return not os.path.exists(os.path.join(os.path.join(Folders.proccessed_data_path, "LinearRegression"), 'Data'))
+
+    def get_previous_node_for_node_with_LR(datareader : DataReader, node : int, datasetsize: DatasetSize):
+        
+        dataset = LinearRegressionDataset(datareader)
+        nodes_ids = Graph.get_nodes_ids_by_size(datasetsize)
+        data_list = []
+        nodes_used = []
+        for _, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(dataset):
+            node_id = (int)(node_id)
+            Y_train = [item for sublist in Y_train for item in sublist]
+            if node_id in nodes_ids and node != node_id:
+                data_list.append(Y_train)
+                nodes_used.append(node_id)
+            if node == node_id:
+                labels_node = Y_train
+        data_list = np.transpose(data_list)
+        regression = LinearRegression(positive = True).fit(data_list, labels_node)
+        coeffiecients = regression.coef_.tolist()
+        results = zip(nodes_used, coeffiecients)
+        sorted_results = sorted(results, key=lambda tup: tup[1],reverse = True)
+        best = sorted_results[:3]
+        return [result[0] for result in best]
+
+    def set_graph_with_LR(datareader : DataReader,size : DatasetSize):
+        Folders().CreateFolders()
+        nodes_ids = Graph.get_nodes_ids_by_size(size).tolist()
+        edge_index = []
+        edge_weight = []
+        for node in nodes_ids:
+            nodes_relevant = LinearRegressionDataset.get_previous_node_for_node_with_LR(datareader,node,size)
+            for node_relevant in nodes_relevant:
+                edge_index.append([nodes_ids.index(node_relevant),nodes_ids.index(node)])
+        edge_index = [list(x) for x in set(tuple(x) for x in edge_index)]
+        edge_weight = np.ones(len(edge_index))
+        edge_index = np.transpose(edge_index)
+
+        name_folder_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight')
+        name_folder_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex')
+
+        if not os.path.exists(name_folder_weight):
+            os.makedirs(name_folder_weight)
+
+        if not os.path.exists(name_folder_index):
+            os.makedirs(name_folder_index)
+
+        name_weight = os.path.join(name_folder_weight,'weight_{0}LR.npy'.format(str(size.name)))
+        name_index = os.path.join(name_folder_index,'index_{0}LR.npy'.format(str(size.name)))
+        np.save(name_index,edge_index)
+        np.save(name_weight,edge_weight)
 
     #endregion
 
@@ -435,11 +485,12 @@ class LSTMDataset(DatasetClass):
         """
         to_create = []
         for size in DatasetSize:
-            if size != DatasetSize.TinyManual or size != DatasetSize.ExperimentalManual:
-                name_folder = os.path.join(
-                    proccessed_data_path, 'Data_{0}'.format(str(size.name)))
-            if not os.path.exists(name_folder):
-                to_create.append([size])
+            if size != DatasetSize.All:
+                if size != DatasetSize.TinyManual or size != DatasetSize.ExperimentalManual:
+                    name_folder = os.path.join(
+                        proccessed_data_path, 'Data_{0}'.format(str(size.name)))
+                if not os.path.exists(name_folder):
+                    to_create.append([size])
         return to_create
 
     def save_dataset(data_reader: DataReader):
@@ -581,11 +632,12 @@ class STConvDataset(DatasetClass):
     def __get_tuple_to_add(proccessed_data_path):
         to_create = []
         for size in DatasetSize:
-            if size != DatasetSize.TinyManual or size != DatasetSize.ExperimentalManual:
-                name_folder = os.path.join(proccessed_data_path, 'Data_{0}'.format(
-                    str(size.name)))
-            if not os.path.exists(name_folder):
-                to_create.append([size])
+            if size != DatasetSize.All:
+                if size != DatasetSize.TinyManual or size != DatasetSize.ExperimentalManual:
+                    name_folder = os.path.join(proccessed_data_path, 'Data_{0}'.format(
+                        str(size.name)))
+                if not os.path.exists(name_folder):
+                    to_create.append([size])
         return to_create
 
     def save_dataset(data_reader: DataReader):

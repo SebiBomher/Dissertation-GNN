@@ -10,6 +10,7 @@ from geopy.distance import geodesic
 from glob import glob
 from sklearn.preprocessing import normalize
 from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
+from sklearn.linear_model import LinearRegression
 
 #endregion
 
@@ -408,6 +409,8 @@ class Graph():
                 nodes = Constants.nodes_Experimental
             elif size == DatasetSize.TinyManual:
                 nodes = Constants.nodes_Tiny
+            elif size == DatasetSize.All:
+                nodes = good_nodes
             else:
                 number_of_nodes =  Graph.get_number_nodes_by_size(size)
                 nodes = sample(good_nodes, number_of_nodes)
@@ -544,14 +547,15 @@ class Graph():
         for epsilon in Graph.epsilon_array:
             for sigma in Graph.sigma_array:
                 for size in DatasetSize:
-                    if size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual:
-                        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}.npy'.format(str(size.name)))
-                        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}.npy'.format(str(size.name)))
-                    else:
-                        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-                        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-                    if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
-                        list_to_add.append([epsilon,sigma,size])
+                    if size != DatasetSize.All and size != DatasetSize.ExperimentalLR and size != DatasetSize.TinyLR:
+                        if size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual:
+                            name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}.npy'.format(str(size.name)))
+                            name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}.npy'.format(str(size.name)))
+                        else:
+                            name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+                            name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
+                        if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
+                            list_to_add.append([epsilon,sigma,size])
         return list_to_add
 
     def get_nodes_ids_by_size(size : DatasetSize) -> list:
@@ -575,13 +579,9 @@ class Graph():
             return DatasetSizeNumber.Medium.value
         elif size == DatasetSize.Small:
             return DatasetSizeNumber.Small.value
-        elif size == DatasetSize.Experimental:
+        elif size == DatasetSize.Experimental or size == DatasetSize.ExperimentalLR:
             return DatasetSizeNumber.Experimental.value
-        elif size == DatasetSize.ExperimentalManual:
-            return DatasetSizeNumber.Experimental.value
-        elif size == DatasetSize.Tiny:
-            return DatasetSizeNumber.Tiny.value
-        elif size == DatasetSize.TinyManual:
+        elif size == DatasetSize.Tiny or size == DatasetSize.TinyManual or size == DatasetSize.TinyLR:
             return DatasetSizeNumber.Tiny.value
 
     def __get_adjency_matrix_weight(p1 : tuple,p2 : tuple,epsilon : float ,sigma : int) -> float:
@@ -601,7 +601,8 @@ class Graph():
             return weight
         else:
             return 0
-
+    
+    
     #endregion
 
     
