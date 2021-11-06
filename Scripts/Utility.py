@@ -112,14 +112,14 @@ class DatasetSize(Enum):
     """
 
     Experimental = 0
-    Tiny = 1
-    ExperimentalManual = 2
-    TinyManual = 3
+    ExperimentalManual = 1
     ExperimentalLR = 2
-    TinyLR = 3
-    Small = 4
-    Medium = 5
-    All = 6
+    Tiny = 3
+    TinyManual = 4
+    TinyLR = 5
+    Small = 6
+    Medium = 7
+    All = 8
 
 class ModelType(Enum):
     r"""

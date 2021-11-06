@@ -250,18 +250,6 @@ class LinearRegressionDataset():
         return [result[0] for result in best]
 
     def set_graph_with_LR(datareader : DataReader,size : DatasetSize):
-        Folders().CreateFolders()
-        nodes_ids = Graph.get_nodes_ids_by_size(size).tolist()
-        edge_index = []
-        edge_weight = []
-        for node in nodes_ids:
-            nodes_relevant = LinearRegressionDataset.get_previous_node_for_node_with_LR(datareader,node,size)
-            for node_relevant in nodes_relevant:
-                edge_index.append([nodes_ids.index(node_relevant),nodes_ids.index(node)])
-        edge_index = [list(x) for x in set(tuple(x) for x in edge_index)]
-        edge_weight = np.ones(len(edge_index))
-        edge_index = np.transpose(edge_index)
-
         name_folder_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight')
         name_folder_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex')
 
@@ -273,6 +261,21 @@ class LinearRegressionDataset():
 
         name_weight = os.path.join(name_folder_weight,'weight_{0}LR.npy'.format(str(size.name)))
         name_index = os.path.join(name_folder_index,'index_{0}LR.npy'.format(str(size.name)))
+        
+        if os.path.isfile(name_weight) and os.path.isfile(name_index):
+            return
+
+        nodes_ids = Graph.get_nodes_ids_by_size(size).tolist()
+        edge_index = []
+        edge_weight = []
+        for node in nodes_ids:
+            nodes_relevant = LinearRegressionDataset.get_previous_node_for_node_with_LR(datareader,node,size)
+            for node_relevant in nodes_relevant:
+                edge_index.append([nodes_ids.index(node_relevant),nodes_ids.index(node)])
+        edge_index = [list(x) for x in set(tuple(x) for x in edge_index)]
+        edge_weight = np.ones(len(edge_index))
+        edge_index = np.transpose(edge_index)
+        
         np.save(name_index,edge_index)
         np.save(name_weight,edge_weight)
 
@@ -403,8 +406,14 @@ class LSTMDataset(DatasetClass):
         r"""
             Function to get data at a time index
         """
+        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+            Size = DatasetSize.Tiny
+        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+            Size = DatasetSize.Experimental
+        else:
+            Size = self.size
         name_x = os.path.join(self.proccessed_data_path_model, "Data_{0}".format(
-            str(self.size.name)), 'X_{0}.npy'.format(str(time_index)))
+            str(Size.name)), 'X_{0}.npy'.format(str(time_index)))
         X = np.load(name_x)
         if X is None:
             return X
@@ -415,8 +424,14 @@ class LSTMDataset(DatasetClass):
         r"""
             Function to get labels at a time index
         """
+        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+            Size = DatasetSize.Tiny
+        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+            Size = DatasetSize.Experimental
+        else:
+            Size = self.size
         name_y = os.path.join(self.proccessed_data_path_model, "Data_{0}".format(
-            str(self.size.name)), 'Y_{0}.npy'.format(str(time_index)))
+            str(Size.name)), 'Y_{0}.npy'.format(str(time_index)))
         Y = np.load(name_y)
         if Y is None:
             return Y
@@ -486,11 +501,11 @@ class LSTMDataset(DatasetClass):
         to_create = []
         for size in DatasetSize:
             if size != DatasetSize.All:
-                if size != DatasetSize.TinyManual or size != DatasetSize.ExperimentalManual:
+                if size != DatasetSize.TinyManual and size != DatasetSize.ExperimentalManual and size != DatasetSize.TinyLR and size != DatasetSize.ExperimentalLR:
                     name_folder = os.path.join(
                         proccessed_data_path, 'Data_{0}'.format(str(size.name)))
-                if not os.path.exists(name_folder):
-                    to_create.append([size])
+                    if not os.path.exists(name_folder):
+                        to_create.append([size])
         return to_create
 
     def save_dataset(data_reader: DataReader):
@@ -633,11 +648,11 @@ class STConvDataset(DatasetClass):
         to_create = []
         for size in DatasetSize:
             if size != DatasetSize.All:
-                if size != DatasetSize.TinyManual or size != DatasetSize.ExperimentalManual:
+                if size != DatasetSize.TinyManual and size != DatasetSize.ExperimentalManual and size != DatasetSize.TinyLR and size != DatasetSize.ExperimentalLR:
                     name_folder = os.path.join(proccessed_data_path, 'Data_{0}'.format(
                         str(size.name)))
-                if not os.path.exists(name_folder):
-                    to_create.append([size])
+                    if not os.path.exists(name_folder):
+                        to_create.append([size])
         return to_create
 
     def save_dataset(data_reader: DataReader):
@@ -650,8 +665,14 @@ class STConvDataset(DatasetClass):
             STConvDataset.__save_proccess_data(data_reader, size)
 
     def __get_features(self, time_index: int):
+        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+            Size = DatasetSize.Tiny
+        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+            Size = DatasetSize.Experimental
+        else:
+            Size = self.size
         name_x = os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(
-            str(self.size.name)), 'X_{0}.npy'.format(str(time_index)))
+            str(Size.name)), 'X_{0}.npy'.format(str(time_index)))
         X = np.load(name_x)
         if X is None:
             return X
@@ -659,8 +680,14 @@ class STConvDataset(DatasetClass):
             return torch.FloatTensor(X).to(self.device)
 
     def __get_target(self, time_index: int):
+        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+            Size = DatasetSize.Tiny
+        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+            Size = DatasetSize.Experimental
+        else:
+            Size = self.size
         name_y = os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(
-            str(self.size.name)), 'Y_{0}.npy'.format(str(time_index)))
+            str(Size.name)), 'Y_{0}.npy'.format(str(time_index)))
         Y = np.load(name_y)
         if Y is None:
             return Y
