@@ -129,7 +129,7 @@ class ModelType(Enum):
             LinearRegression = 2
     """
     LSTM = 0
-    GRU = 1
+    DCRNN = 1
     STCONV = 2
     LinearRegression = 3
     ARIMA = 4

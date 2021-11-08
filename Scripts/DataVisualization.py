@@ -30,7 +30,10 @@ class DataViz():
                  dfInfo: pd.DataFrame,
                  dfMeta: pd.DataFrame,
                  dfLR: pd.DataFrame,
+                 dfARIMA: pd.DataFrame,
+                 dfSARIMA: pd.DataFrame,
                  dfSTCONV: pd.DataFrame,
+                 dfDCRNN: pd.DataFrame,
                  dfCUSTOM: pd.DataFrame):
 
         self.path_data = path_data
@@ -41,8 +44,11 @@ class DataViz():
         self.dfInfo = dfInfo
         self.dfMeta = dfMeta
         self.dfLR = dfLR
+        self.dfARIMA = dfARIMA
+        self.dfSARIMA = dfSARIMA
         self.dfSTCONV = dfSTCONV
         self.dfCUSTOM = dfCUSTOM
+        self.dfDCRNN = dfDCRNN
 
     def BoxPlotSpeed(self, name_save: str) -> None:
         r"""
@@ -311,6 +317,72 @@ class DataViz():
 
         fig.write_image(path_save)
 
+    def GNNNRegresion(self,name_save : str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save):
+            return
+
+        # TODO
+
+        fig = px.box([], x="Size", y="Loss", color="Type")
+        fig.write_image(path_save)
+        return
+
+    def HeatMapLossGNNEachModel(self,name_save : str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save):
+            return
+
+        # TODO
+
+        fig = px.box([], x="Size", y="Loss", color="Type")
+        fig.write_image(path_save)
+        return
+
+    def HeatMapLossGNNEachMapGeneration(self,name_save : str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save):
+            return
+
+        # TODO
+
+        fig = px.box([], x="Size", y="Loss", color="Type")
+        fig.write_image(path_save)
+        return
+
+    def BoxPlotLossOnEachNode(self,name_save : str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save):
+            return
+
+        # TODO
+
+        fig = px.box([], x="Size", y="Loss", color="Type")
+        fig.write_image(path_save)
+        return
+
+    def ResultsBestHyperParameters(self,name_save : str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save):
+            return
+
+        # TODO
+
+        fig = px.box([], x="Size", y="Loss", color="Type")
+        fig.write_image(path_save)
+        return
+
+    def HyperParametersUsedOnTrialDescending(self,name_save : str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save):
+            return
+
+        # TODO
+
+        fig = px.box([], x="Size", y="Loss", color="Type")
+        fig.write_image(path_save)
+        return
+
     def Run():
         datareader = DataReader()
         dfInfo, dfMeta = datareader.visualization()
@@ -349,7 +421,7 @@ class DataViz():
             if not os.path.exists(path_save_plots):
                 os.makedirs(path_save_plots)
 
-            dfLR,dfSTCONV,dfCUSTOM = datareader.results(experiment)
+            dfLR,dfARIMA,dfSARIMA,dfSTCONV,dfCUSTOM,dfDCRNN = datareader.results(experiment)
             dataviz = DataViz(path_data = Folders.path_data,
                                 path_save_plots = path_save_plots,
                                 path_processed_data = Folders.proccessed_data_path,
@@ -358,7 +430,10 @@ class DataViz():
                                 dfInfo = dfInfo,
                                 dfMeta = dfMeta,
                                 dfLR = dfLR,
+                                dfARIMA = dfARIMA,
+                                dfSARIMA = dfSARIMA,
                                 dfSTCONV = dfSTCONV,
+                                dfDCRNN = dfDCRNN,
                                 dfCUSTOM = dfCUSTOM)
 
             #Results Visualization

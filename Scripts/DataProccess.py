@@ -9,7 +9,7 @@ from typing import Tuple, Union
 from geopy.distance import geodesic
 from glob import glob
 from sklearn.preprocessing import normalize
-from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
+from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders, ModelType
 from sklearn.linear_model import LinearRegression
 
 #endregion
@@ -68,7 +68,16 @@ class DataReader():
     #endregion
     
     #region Instance Functions
-
+    def MergeCSV(type : ModelType,experiment_path : str,columnsInfo : list) -> None:
+        File = os.path.join(experiment_path,"{0}.csv".format(type.name))
+        if not(os.path.exists(File)):
+            dataframeInfo = pd.DataFrame(columns = columnsInfo)
+            Files = os.path.join(experiment_path,"{0}*_*.csv".format(type.name))
+            for file in glob(Files):
+                with open(file) as f:
+                    dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
+            dataframeInfo.to_csv(File)
+        return
     def results(self,experiment_name : str)-> Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]:
         r"""
             Reads the csv results and combines the LSTM and STCONV results into 2 csv files.
@@ -78,29 +87,18 @@ class DataReader():
         """
         experiment_path = os.path.join(self.__results_path,experiment_name)
         dfLR = pd.read_csv(os.path.join(experiment_path,"LinearRegression.csv"))
+        dfARIMA = pd.read_csv(os.path.join(experiment_path,"ARIMA.csv"))
+        dfSARIMA = pd.read_csv(os.path.join(experiment_path,"SARIMA.csv"))
         columnsInfo = ["Model", "Epsilon", "Sigma", "Size", "Criterion", "Loss", "Epoch", "OptimizerType", "Trial", "TestOrVal"]
-
-        STCONVFile = os.path.join(experiment_path,"STCONV.csv")
-        if not(os.path.exists(STCONVFile)):
-            dataframeInfo = pd.DataFrame(columns = columnsInfo)
-            STConvFiles = os.path.join(experiment_path,"STCONV_*_*.csv")
-            for file in glob(STConvFiles):
-                with open(file) as f:
-                    dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
-            dataframeInfo.to_csv(STCONVFile)
-
-        LSTMFile = os.path.join(experiment_path,"LSTM.csv")
-        if not(os.path.exists(LSTMFile)):
-            dataframeInfo = pd.DataFrame(columns = columnsInfo)
-            LSTMFiles = os.path.join(experiment_path,"LSTM*_*.csv")
-            for file in glob(LSTMFiles):
-                with open(file) as f:
-                    dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo,  skiprows=1),ignore_index=True)
-            dataframeInfo.to_csv(LSTMFile)
+        
+        DataReader.MergeCSV(ModelType.STCONV,experiment_path,columnsInfo)
+        DataReader.MergeCSV(ModelType.LSTM,experiment_path,columnsInfo)
+        DataReader.MergeCSV(ModelType.DCRNN,experiment_path,columnsInfo)
 
         dfSTCONV = pd.read_csv(os.path.join(experiment_path,"STCONV.csv"))
         dfLSTM = pd.read_csv(os.path.join(experiment_path,"LSTM.csv"))
-        return dfLR,dfSTCONV,dfLSTM
+        dfDCRNN = pd.read_csv(os.path.join(experiment_path,"DCRNN.csv"))
+        return dfLR,dfARIMA,dfSARIMA,dfSTCONV,dfLSTM,dfDCRNN
 
     def start(self) -> None:
         r"""
