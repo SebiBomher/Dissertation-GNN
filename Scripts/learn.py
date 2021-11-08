@@ -12,7 +12,7 @@ from torch import nn
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
 from Scripts.Utility import Constants, DatasetSize,  ModelType, OptimizerType, Folders
-from Scripts.Models import GGRUModel, LSTMModel, STConvModel
+from Scripts.Models import DCRNNModel, LSTMModel, STConvModel
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GridSearchCV
 from Scripts.DataProccess import DataReader,  Graph
@@ -103,6 +103,8 @@ class Learn():
         self.optimizer_type = config["optimizer_type"]
         self.nodes_size = config["nodes_size"]
         self.model_type = config["model_type"]
+        self.hidden_channels = config["hidden_channels"]
+        self.K = config["K"]
         self.train_ratio = param["train_ratio"]
         self.test_ratio = param["test_ratio"]
         self.val_ratio = param["val_ratio"]
@@ -135,7 +137,8 @@ class Learn():
             Training step in the training process
             Returns nothing
         """
-        dfResults = pd.DataFrame(columns=["Model", "Epsilon", "Sigma", "Size","Criterion", "Loss", "Epoch", "OptimizerType", "Trial", "TestOrVal"])
+        dfResults = pd.DataFrame(columns=["Model", "Epsilon", "Sigma", "Size",
+                                 "Criterion", "Loss", "Epoch", "OptimizerType", "Trial", "TestOrVal"])
         self.model.train()
         best_val_loss = np.inf
         val_model = self.model
@@ -176,6 +179,9 @@ class Learn():
             # Save dataframe results
             if epoch == self.nb_epoch - 1:
                 dfResults = self.__test(val_model, dfResults, epoch)
+                if not os.path.exists(os.path.join(Folders.results_path, experiment_name)):
+                    os.makedirs(os.path.join(
+                        Folders.results_path, experiment_name))
                 file_save = os.path.join(Folders.results_path, experiment_name, "{0}_{1}_{2}.csv".format(
                     self.model_type.name, str(self.nodes_size.name), str(tune.get_trial_id())))
                 dfResults.to_csv(path_or_buf=file_save, index=False)
@@ -286,7 +292,7 @@ class Learn():
         print("Best trial test set loss: {}".format(MAE_loss))
         return dfResults
 
-    def __SARIMATrainAndTest(self, experiment_name : str) -> None:
+    def __SARIMATrainAndTest(self, experiment_name: str) -> None:
         r"""
             Trains and tests SARIMA
             No Arguments.
@@ -325,9 +331,10 @@ class Learn():
         if not os.path.exists(folder_save):
             os.makedirs(folder_save)
 
-        file_save = os.path.join(folder_save, "ARIMA.csv")
+        file_save = os.path.join(folder_save, "SARIMA.csv")
         dfResults.to_csv(path_or_buf=file_save, index=False)
-    def __ARIMATrainAndTest(self, experiment_name : str) -> None :
+
+    def __ARIMATrainAndTest(self, experiment_name: str) -> None:
         r"""
             Trains and tests ARIMA
             No Arguments.
@@ -437,9 +444,9 @@ class Learn():
             self.model = STConvModel(node_features=self.num_features,
                                      num_nodes=Graph.get_number_nodes_by_size(
                                          self.nodes_size),
-                                     hidden_channels=Constants.hidden_channels,
+                                     hidden_channels=self.hidden_channels,
                                      kernel_size=1,
-                                     K=1)
+                                     K=self.K)
         elif self.model_type == ModelType.LSTM:
             self.train_dataset, self.validation_dataset, self.test_dataset = LSTMDataset.get_dataset_LSTM(
                 train_ratio=self.train_ratio,
@@ -450,9 +457,10 @@ class Learn():
                 nodes_size=self.nodes_size,
                 datareader=self.datareader,
                 device=self.device)
-            self.model = LSTMModel(node_features=self.num_features, K=3)
+            self.model = LSTMModel(
+                node_features=self.num_features, hidden_channels=self.hidden_channels, K=self.K)
 
-        elif self.model_type == ModelType.GRU:
+        elif self.model_type == ModelType.DCRNN:
             self.train_dataset, self.validation_dataset, self.test_dataset = LSTMDataset.get_dataset_LSTM(
                 train_ratio=self.train_ratio,
                 test_ratio=self.test_ratio,
@@ -462,7 +470,8 @@ class Learn():
                 nodes_size=self.nodes_size,
                 datareader=self.datareader,
                 device=self.device)
-            self.model = GGRUModel(node_features=self.num_features, K=3)
+            self.model = DCRNNModel(
+                node_features=self.num_features, hidden_channels=self.hidden_channels, K=self.K)
 
         elif self.model_type == ModelType.LinearRegression:
             self.train_dataset = LinearRegressionDataset(self.datareader)
@@ -499,11 +508,11 @@ class Learn():
             Returns None.
         """
         LinearRegressionDataset.save_dataset(datareader)
-        LinearRegressionDataset.set_graph_with_LR(datareader, DatasetSize.Experimental)
+        LinearRegressionDataset.set_graph_with_LR(
+            datareader, DatasetSize.Experimental)
         LinearRegressionDataset.set_graph_with_LR(datareader, DatasetSize.Tiny)
         STConvDataset.save_dataset(datareader)
         LSTMDataset.save_dataset(datareader)
-        
 
     def __start(config, param, checkpoint_dir=None) -> None:
         r"""
@@ -519,7 +528,7 @@ class Learn():
         learn.__set_for_train()
         learn.__train_val_and_test(param["experiment_name"])
 
-    def startNonGNN(datareader: DataReader, experiment_name: str, model_type : ModelType) -> None:
+    def startNonGNN(datareader: DataReader, experiment_name: str, model_type: ModelType) -> None:
         r"""
             Function to start training Linear Regression
             Class Function.
@@ -529,7 +538,7 @@ class Learn():
         """
         learn = Learn()
         learn.Init(datareader=datareader,
-                     model_type=ModelType.LinearRegression)
+                   model_type=ModelType.LinearRegression)
         learn.__set_for_train()
         if model_type == ModelType.LinearRegression:
             learn.__LRTrainAndTest(experiment_name=experiment_name)
@@ -570,15 +579,18 @@ class Learn():
             "test_ratio": Constants.test_ratio,
             "experiment_name": experiment_name
         }
-
         config = {
             "K": tune.choice([1, 3, 5, 7]),
-            "epsilon": tune.choice([0.1, 0.3, 0.5, 0.7]),
+            "hidden_channels": tune.choice([4, 8, 16, 32]),
+            "epsilon": tune.choice([0.1]),
             "optimizer_type": tune.choice([OptimizerType.Adam, OptimizerType.AdamW, OptimizerType.Adamax, OptimizerType.RMSprop]),
-            "sigma": tune.choice([1, 3, 5, 10]),
+            "sigma": tune.choice([1]),
             "model_type": tune.choice([model]),
             "nodes_size": tune.choice([datasetsize])
         }
+        if datasetsize != DatasetSize.ExperimentalManual and datasetsize != DatasetSize.ExperimentalLR and datasetsize != DatasetSize.TinyManual and datasetsize != DatasetSize.TinyLR:
+            config["epsilon"] = tune.choice([0.1, 0.3, 0.5, 0.7])
+            config["sigma"] = tune.choice([1, 3, 5, 10])
 
         directory_experiment_ray = os.path.join(
             Folders.results_ray_path, experiment_name)
@@ -621,9 +633,12 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
-        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
-        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.SARIMA)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,
+                          model_type=ModelType.LinearRegression)
+        Learn.startNonGNN(
+            datareader=datareader, experiment_name=experiment_name, model_type=ModelType.ARIMA)
+        Learn.startNonGNN(
+            datareader=datareader, experiment_name=experiment_name, model_type=ModelType.SARIMA)
 
         for datasize in DatasetSize:
             if datasize != DatasetSize.All:
@@ -645,5 +660,34 @@ class Learn():
             os.makedirs(directory_experiment_ray)
 
         Learn.set_data(datareader=datareader)
+
+        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
+        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
+        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.SARIMA)
+
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.Tiny, model=ModelType.LSTM,
+                                   datareader=datareader, experiment_name=experiment_name)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyManual, model=ModelType.LSTM,
+                                   datareader=datareader, experiment_name=experiment_name)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyLR, model=ModelType.LSTM,
+                                   datareader=datareader, experiment_name=experiment_name)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalManual,
+                                   model=ModelType.LSTM, datareader=datareader, experiment_name=experiment_name)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalLR,
+                                   model=ModelType.LSTM, datareader=datareader, experiment_name=experiment_name)
+
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.Tiny, model=ModelType.STCONV,
+                                   datareader=datareader, experiment_name=experiment_name)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyManual, model=ModelType.STCONV,
+                                   datareader=datareader, experiment_name=experiment_name)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyLR, model=ModelType.STCONV,
+                                   datareader=datareader, experiment_name=experiment_name)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalManual,
+                                   model=ModelType.STCONV, datareader=datareader, experiment_name=experiment_name)
+        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalLR,
+                                   model=ModelType.STCONV, datareader=datareader, experiment_name=experiment_name)
+
+        for datasize in DatasetSize:
+            Learn.HyperParameterTuning(datasetsize=datasize, model=ModelType.DCRNN,
+                                       datareader=datareader, experiment_name=experiment_name)
 #endregion
-    

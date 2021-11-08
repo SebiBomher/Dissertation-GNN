@@ -60,7 +60,7 @@ class DataViz():
 
         fig.write_image(path_save)
 
-    def MapPlotSensors(self, name_save: str, datasize: DatasetSize = None) -> None:
+    def MapPlotSensors(self, name_save: str, datasize: DatasetSize) -> None:
         r"""
             Plot for sensors on Los Angeles Map
         """
@@ -70,12 +70,12 @@ class DataViz():
 
         df = self.dfMeta
         zoom = 8
-        if datasize != None != None:
-            datanodes = Graph.get_nodes_ids_by_size(
-                self.path_processed_data, datasize)
-            df = df[df['ID'].isin(datanodes)]
-            if datasize == DatasetSize.Experimental:
-                zoom = 14
+        datanodes = Graph.get_nodes_ids_by_size(datasize)
+        df = df[df['ID'].isin(datanodes)]
+        if datasize == DatasetSize.Experimental:
+            zoom = 14
+        if datasize == DatasetSize.Tiny:
+            zoom = 12
         fig = px.scatter_mapbox(df, lat="Latitude", lon="Longitude", hover_name="ID", hover_data=["Type", "Lanes"],
                                 color_discrete_sequence=["black"], zoom=zoom, size_max=15, mapbox_style="open-street-map")
 
@@ -120,6 +120,16 @@ class DataViz():
 
         fig.write_image(path_save)
 
+    def GetGraphMatrixFromGraph(graph : Graph, size : DatasetSize):
+        nr_nodes = Graph.get_number_nodes_by_size(size)
+        graph_matrix = np.zeros((nr_nodes, nr_nodes))
+        for index, (edge_index, edge_weight) in enumerate(zip(np.transpose(graph.edge_index), graph.edge_weight)):
+            graph_matrix[edge_index[0]
+                        ][edge_index[1]] = edge_weight
+            # graph_matrix[edge_index[1]
+            #             ][edge_index[0]] = edge_weight
+        return graph_matrix
+
     def GraphHeatmap(self, name_save: str, datareader: DataReader) -> None:
         path_save = os.path.join(self.path_save_plots, name_save)
         if os.path.isfile(path_save):
@@ -130,19 +140,19 @@ class DataViz():
         for epsilon in epsilon_array:
             for sigma in sigma_array:
                 for dataset in DatasetSize:
-                    graph = Graph(epsilon,sigma, dataset, datareader)
-                    nr_nodes = Graph.get_number_nodes_by_size(dataset)
-                    graph_matrix = np.zeros((nr_nodes, nr_nodes))
-                    for index, (edge_index, edge_weight) in enumerate(zip(np.transpose(graph.edge_index), graph.edge_weight)):
-                        graph_matrix[edge_index[0]
-                                     ][edge_index[1]] = edge_weight
-                        graph_matrix[edge_index[1]
-                                     ][edge_index[0]] = edge_weight
-                    fig = px.imshow(graph_matrix, title='Graph Heatmap for epsilon {0} and sigma {1} with size {2}'.format(
-                        epsilon, sigma, dataset.name))
+                    if dataset != DatasetSize.ExperimentalManual and dataset != DatasetSize.ExperimentalLR and dataset != DatasetSize.TinyManual and dataset != DatasetSize.TinyLR and dataset != DatasetSize.All:  
+                        graph = Graph(epsilon,sigma, dataset, datareader)
+                        graph_matrix = DataViz.GetGraphMatrixFromGraph(graph,dataset)
+                        fig = px.imshow(graph_matrix, title='Graph Heatmap for epsilon {0} and sigma {1} with size {2}'.format(
+                            epsilon, sigma, dataset.name))
 
-                    fig.write_image("{0}_{1}_{2}_{3}.png".format(
-                        path_save, epsilon, sigma, dataset.name))
+                        fig.write_image("{0}_{1}_{2}_{3}.png".format(
+                            path_save, epsilon, sigma, dataset.name))
+        for dataset in [DatasetSize.ExperimentalManual,DatasetSize.ExperimentalLR,DatasetSize.TinyManual,DatasetSize.TinyLR]:
+            graph = Graph(0.1,1, dataset, datareader)
+            graph_matrix = DataViz.GetGraphMatrixFromGraph(graph,dataset)
+            fig = px.imshow(graph_matrix, title='Graph Heatmap for size {0}'.format(dataset.name))
+            fig.write_image("{0}.png".format(dataset.name))
 
     def TableFinalResults(self, name_save: str) -> None:
         path_save = os.path.join(self.path_save_plots, name_save)
@@ -304,6 +314,35 @@ class DataViz():
     def Run():
         datareader = DataReader()
         dfInfo, dfMeta = datareader.visualization()
+        path_save_plots = os.path.join(Folders.path_save_plots,"GeneralViz")
+
+        if not os.path.exists(path_save_plots):
+            os.makedirs(path_save_plots)
+
+        dataviz = DataViz(path_data = Folders.path_data,
+                            path_save_plots = path_save_plots,
+                            path_processed_data = Folders.proccessed_data_path,
+                            path_results = Folders.results_path,
+                            graph_info_txt = Folders.graph_info_path,
+                            dfInfo = dfInfo,
+                            dfMeta = dfMeta,
+                            dfLR = pd.DataFrame(),
+                            dfSTCONV = pd.DataFrame(),
+                            dfCUSTOM = pd.DataFrame())
+        # General Datavizualization
+        dataviz.BoxPlotSpeed("boxplot.png")
+        dataviz.MapPlotSensors("mapplotAll.png",DatasetSize.All)
+        dataviz.MapPlotSensors("mapplotExperimental.png",DatasetSize.Experimental)
+        dataviz.MapPlotSensors("mapplotTiny.png",DatasetSize.Tiny)
+        dataviz.MapPlotSensors("mapplotSmall.png",DatasetSize.Small)
+        dataviz.MapPlotSensors("mapplotMedium.png",DatasetSize.Medium)
+        dataviz.PieChartRoadwayType("piechart.png")
+        dataviz.MapHeatmapSpeed("mapheat9.png",9)
+        dataviz.MapHeatmapSpeed("mapheat15.png",15)
+        dataviz.MapHeatmapSpeed("mapheat18.png",18)
+        dataviz.MapHeatmapSpeed("mapheat22.png",22)
+        dataviz.GraphHeatmap("graph.png", datareader)
+
         for experiment in os.listdir(Folders.results_ray_path):
             path_save_plots = os.path.join(Folders.path_save_plots,experiment)
 
@@ -321,19 +360,6 @@ class DataViz():
                                 dfLR = dfLR,
                                 dfSTCONV = dfSTCONV,
                                 dfCUSTOM = dfCUSTOM)
-
-            # General Datavizualization
-            dataviz.BoxPlotSpeed("boxplot.png")
-            dataviz.MapPlotSensors("mapplotAll.png")
-            dataviz.MapPlotSensors("mapplotExperimental.png")
-            dataviz.MapPlotSensors("mapplotSmall.png")
-            dataviz.MapPlotSensors("mapplotMedium.png")
-            dataviz.PieChartRoadwayType("piechart.png")
-            dataviz.MapHeatmapSpeed("mapheat9.png",9)
-            dataviz.MapHeatmapSpeed("mapheat15.png",15)
-            dataviz.MapHeatmapSpeed("mapheat18.png",18)
-            dataviz.MapHeatmapSpeed("mapheat22.png",22)
-            dataviz.GraphHeatmap("graph.png", datareader)
 
             #Results Visualization
             dataviz.TableFinalResults("tableresults.png")

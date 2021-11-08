@@ -593,7 +593,7 @@ class Graph():
             return DatasetSizeNumber.Medium.value
         elif size == DatasetSize.Small:
             return DatasetSizeNumber.Small.value
-        elif size == DatasetSize.Experimental or size == DatasetSize.ExperimentalLR:
+        elif size == DatasetSize.Experimental or size == DatasetSize.ExperimentalLR or size == DatasetSize.ExperimentalManual:
             return DatasetSizeNumber.Experimental.value
         elif size == DatasetSize.Tiny or size == DatasetSize.TinyManual or size == DatasetSize.TinyLR:
             return DatasetSizeNumber.Tiny.value

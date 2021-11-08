@@ -1,7 +1,7 @@
 
 import torch
 from torch_geometric_temporal.nn.attention.stgcn import STConv
-from torch_geometric_temporal.nn.recurrent import GCLSTM
+from torch_geometric_temporal.nn.recurrent import GCLSTM,DCRNN
 from torch_geometric.nn import GCNConv
 from torch.nn import ReLU,Linear,Module,BatchNorm1d,Dropout
 from sklearn.linear_model import LinearRegression
@@ -25,20 +25,20 @@ class STConvModel(Module):
         x = self.linear(x)
         return x
 
-class GGRUModel(Module):
-    def __init__(self,node_features,K):
-        super(GGRUModel, self).__init__()
+class DCRNNModel(Module):
+    def __init__(self,node_features,hidden_channels,K):
+        super(DCRNNModel, self).__init__()
 
-        self.GConvGRU = GCLSTM(in_channels= node_features,out_channels= 8,K=K)
-        self.Conv1 = GCNConv(in_channels=8,out_channels=2)
-        self.BatchNorm1 = BatchNorm1d(num_features=2)
+        self.DCRNN = DCRNN(in_channels= node_features,out_channels=hidden_channels,K=K)
+        self.Conv1 = GCNConv(in_channels=hidden_channels,out_channels=hidden_channels)
+        self.BatchNorm1 = BatchNorm1d(num_features=hidden_channels)
         self.ReLU = ReLU()
         self.Dropout = Dropout()
-        self.linear = Linear(node_features, 1)
+        self.linear = Linear(hidden_channels, 1)
 
     def forward(self, x, edge_index, edge_weight):
-        x = self.GConvGRU(x, edge_index, edge_weight)
-        x = self.Conv1(x[0], edge_index)
+        x = self.DCRNN(x, edge_index, edge_weight)
+        x = self.Conv1(x, edge_index)
         x = self.ReLU(x)
         x = self.BatchNorm1(x)
         x = self.Dropout(x)
@@ -46,15 +46,15 @@ class GGRUModel(Module):
         return x
 
 class LSTMModel(Module):
-    def __init__(self,node_features,K):
+    def __init__(self,node_features,hidden_channels,K):
         super(LSTMModel, self).__init__()
 
-        self.GCLSTM1 = GCLSTM(in_channels= node_features,out_channels= 2,K=K)
-        self.Conv1 = GCNConv(in_channels=2,out_channels=2)
-        self.BatchNorm1 = BatchNorm1d(num_features=2)
+        self.GCLSTM1 = GCLSTM(in_channels= node_features,out_channels= hidden_channels,K=K)
+        self.Conv1 = GCNConv(in_channels=hidden_channels,out_channels=hidden_channels)
+        self.BatchNorm1 = BatchNorm1d(num_features=hidden_channels)
         self.ReLU = ReLU()
         self.Dropout = Dropout()
-        self.linear = Linear(node_features, 1)
+        self.linear = Linear(hidden_channels, 1)
 
     def forward(self, x, edge_index, edge_weight):
         x = self.GCLSTM1(x, edge_index, edge_weight)
