@@ -1,9 +1,7 @@
 from datetime import datetime
 import os
 from enum import Enum
-
 import numpy as np
-
 
 class Constants():
     r"""
@@ -40,16 +38,16 @@ class Constants():
     results_ray_folder: str = "Results-RAY"
     folder_save_plots: str = "Plots"
     checkpoin_ARIMA_folder: str = "Checkpoint_ARIMA"
-    checkpoin_VARMAX_folder: str = "Checkpoint_SARIMA"
+    checkpoin_SARIMA_folder: str = "Checkpoint_SARIMA"
     nodes_Experimental: list = [718292, 769496,
                                 718291, 718290, 764567, 774279, 774278, 764671]
     edge_index_Experimental_manual = [[0, 1, 7, 4, 7, 5], [1, 2, 4, 3, 6, 4]]
-    edge_weight_Experimental_manual = np.ones(len(nodes_Experimental))
+    edge_weight_Experimental_manual = np.ones(len(edge_index_Experimental_manual[0]))
     nodes_Tiny: list = [775637, 718165, 776986, 759289, 774672, 760643, 774671, 717046, 718419, 769105, 764026, 759280, 775636, 759385, 760635, 718166, 774685, 774658, 716938, 776177, 763453, 718421, 717045, 768598,
                         717043, 716063, 717041, 717040, 717039, 737184, 717042, 718335, 763458, 776981, 737158, 737313, 769118, 772501, 718173, 764037, 763447, 763246, 718041, 763251, 763424, 763429, 763434, 763439, 764032, 764418]
     edge_index_Tiny_manual: list = [[0, 0, 0, 1, 5, 5, 5, 9, 9, 9, 10, 10, 10, 6, 14, 15, 7, 13, 10, 11, 8, 9, 4, 16, 5, 2, 20, 3, 22, 23, 24, 25, 26, 28, 29, 30, 31, 21, 32, 33, 34, 36, 17, 38, 12, 39, 40, 41, 42, 44, 45, 46, 47, 48, 27, 35, 9], [
         1, 2, 3, 4, 6, 7, 2, 4, 3, 12, 12, 11, 4, 14, 15, 12, 13, 10, 11, 8, 2, 3, 16, 17, 6, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 7, 32, 33, 34, 35, 9, 37, 5, 39, 40, 41, 42, 43, 45, 46, 47, 48, 0, 19, 18, 36]]
-    edge_weight_Tiny_manual: list = np.ones(len(nodes_Tiny))
+    edge_weight_Tiny_manual: list = np.ones(len(edge_index_Tiny_manual[0]))
 
 
 class Folders():
@@ -97,7 +95,7 @@ class DatasetSizeNumber(Enum):
             Small = 120
             Experimental = 5
     """
-
+    All = 2789
     Medium = 480
     Small = 120
     Tiny = 50
@@ -114,12 +112,14 @@ class DatasetSize(Enum):
     """
 
     Experimental = 0
-    Tiny = 1
-    ExperimentalManual = 2
-    TinyManual = 3
-    Small = 4
-    Medium = 5
-
+    ExperimentalManual = 1
+    ExperimentalLR = 2
+    Tiny = 3
+    TinyManual = 4
+    TinyLR = 5
+    Small = 6
+    Medium = 7
+    All = 8
 
 class ModelType(Enum):
     r"""

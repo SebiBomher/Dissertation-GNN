@@ -4,7 +4,6 @@ import pickle
 import numpy as np
 import copy
 import pandas as pd
-from statsmodels.base.model import Model
 import torch
 import os
 import shutil
@@ -12,7 +11,7 @@ from ray import tune
 from torch import nn
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
-from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, ModelType, OptimizerType, Folders
+from Scripts.Utility import Constants, DatasetSize,  ModelType, OptimizerType, Folders
 from Scripts.Models import GGRUModel, LSTMModel, STConvModel
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GridSearchCV
@@ -25,7 +24,6 @@ from ray.tune.schedulers.async_hyperband import ASHAScheduler
 from datetime import datetime
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-
 #endregion
 
 
@@ -500,9 +498,12 @@ class Learn():
             Class Function.
             Returns None.
         """
+        LinearRegressionDataset.save_dataset(datareader)
+        LinearRegressionDataset.set_graph_with_LR(datareader, DatasetSize.Experimental)
+        LinearRegressionDataset.set_graph_with_LR(datareader, DatasetSize.Tiny)
         STConvDataset.save_dataset(datareader)
         LSTMDataset.save_dataset(datareader)
-        LinearRegressionDataset.save_dataset(datareader)
+        
 
     def __start(config, param, checkpoint_dir=None) -> None:
         r"""
@@ -620,13 +621,29 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
+        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
         Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.SARIMA)
 
-        # for datasize in DatasetSize:
-        #     for model in ModelType:
-        #         if model != ModelType.LinearRegression or model != ModelType.ARIMA or model != ModelType.SARIMA:
-        #             Learn.HyperParameterTuning(
-        #                 datasetsize=datasize, model=model, datareader=datareader, experiment_name=experiment_name)
-    #endregion
+        for datasize in DatasetSize:
+            if datasize != DatasetSize.All:
+                for model in ModelType:
+                    if model != ModelType.LinearRegression and model != ModelType.ARIMA and model != ModelType.SARIMA:
+                        Learn.HyperParameterTuning(
+                            datasetsize=datasize, model=model, datareader=datareader, experiment_name=experiment_name)
+
+    def TestRun():
+        Folders().CreateFolders()
+        datareader = DataReader()
+
+        experiment_name = "Experiment_{0}".format(
+            datetime.now().strftime("%d_%m_%Y-%H_%M_%S"))
+        directory_experiment_ray = os.path.join(
+            Folders.results_ray_path, experiment_name)
+
+        if not os.path.exists(directory_experiment_ray):
+            os.makedirs(directory_experiment_ray)
+
+        Learn.set_data(datareader=datareader)
+#endregion
+    

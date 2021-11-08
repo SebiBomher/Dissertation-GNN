@@ -7,4 +7,4 @@ from Scripts.DataVisualization import DataViz
 
 if __name__ == '__main__':
     Learn.Run()
-    DataViz.Run()
+    # DataViz.Run()
