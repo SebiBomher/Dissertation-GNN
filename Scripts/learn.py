@@ -148,12 +148,16 @@ class Learn():
         edge_index = self.train_dataset.get_edge_index()
         edge_weight = self.train_dataset.get_edge_weight()
         for epoch in tqdm(range(self.nb_epoch)):
-            loss = 0
+            train_loss = 0
             for index, (x, y) in enumerate(dataloader):
                 X = x[0]
                 Y = y[0]
                 y_hat = self.model(X, edge_index, edge_weight)
-                loss += LossFunction.MAE(y_hat, Y)
+                loss = LossFunction.MAE(y_hat, Y)
+                train_loss += loss
+                loss.backward()
+                self.optimizer.step()
+                self.optimizer.zero_grad()
 
             # Validation Step at epoch end
             val_loss, dfResults = self.__val(dfResults, epoch)
@@ -167,13 +171,11 @@ class Learn():
             if epoch_no_improvement == 0:
                 print("Early stopping at epoch: {0}".format(epoch))
                 break
-            loss = loss / (index+1)
-            self.scheduler.step(loss)
-            loss.backward()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
+            
+            train_loss = train_loss / (index+1)
+            self.scheduler.step(train_loss)
             print("Epoch {0} : Validation loss {1} ; Train loss {2};".format(
-                epoch, val_loss, loss))
+                epoch, val_loss, train_loss))
 
             # test step if this is the last epoch
             # Save dataframe results

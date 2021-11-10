@@ -322,8 +322,15 @@ class LSTMDataset(DatasetClass):
         r"""
             Sets the dataset length
         """
+        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+            Size = DatasetSize.Tiny
+        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+            Size = DatasetSize.Experimental
+        else:
+            Size = self.size
+
         self.snapshot_count = len(glob.glob1(os.path.join(
-            self.proccessed_data_path_model, "Data_{0}".format(str(self.size.name))), "X_*.npy"))
+            self.proccessed_data_path_model, "Data_{0}".format(str(Size.name))), "X_*.npy"))
 
     def __split_dataset(self, train_ratio: float = 0.6, val_ratio: float = 0.2, test_ratio: float = 0.2):
         r"""
@@ -339,7 +346,7 @@ class LSTMDataset(DatasetClass):
                                        self.data_reader,
                                        self.device,
                                        0,
-                                       time_train + 1)
+                                       time_train)
 
         val_iterator = LSTMDataset(self.sigma,
                                      self.epsilon,
@@ -554,7 +561,13 @@ class STConvDataset(DatasetClass):
         return train, val, test
 
     def __set_snapshot_count(self):
-        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(self.size.name))), "X_*.npy"))
+        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+            Size = DatasetSize.Tiny
+        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+            Size = DatasetSize.Experimental
+        else:
+            Size = self.size
+        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(Size.name))), "X_*.npy"))
 
     def __split_dataset(self, train_ratio: float = 0.6, val_ratio: float = 0.2, test_ratio: float = 0.2):
         assert train_ratio + test_ratio + val_ratio == 1
@@ -567,7 +580,7 @@ class STConvDataset(DatasetClass):
                                        self.data_reader,
                                        self.device,
                                        0,
-                                       time_train + 1)
+                                       time_train)
 
         test_iterator = STConvDataset(self.sigma,
                                       self.epsilon,
