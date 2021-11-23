@@ -382,6 +382,27 @@ class DataViz():
         fig = px.box([], x="Size", y="Loss", color="Type")
         fig.write_image(path_save)
         return
+    def RegressionArimaTruePredicted(self,name_save : str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save):
+            return
+
+        # TODO
+
+        fig = px.box([], x="Size", y="Loss", color="Type")
+        fig.write_image(path_save)
+        return
+
+    def RegressionSarimaTruePredicted(self,name_save : str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save):
+            return
+
+        # TODO
+
+        fig = px.box([], x="Size", y="Loss", color="Type")
+        fig.write_image(path_save)
+        return
 
     def Run():
         datareader = DataReader()
