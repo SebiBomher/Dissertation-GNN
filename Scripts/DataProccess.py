@@ -9,9 +9,9 @@ from typing import Tuple, Union
 from geopy.distance import geodesic
 from glob import glob
 from sklearn.preprocessing import normalize
-from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
+from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, DistanceType, Folders
 from sklearn.linear_model import LinearRegression
-
+import requests
 #endregion
 
 class DataReader():
@@ -198,7 +198,7 @@ class DataReader():
                     skip = False
                 else:
                     line = line.split('\t')
-                    line = line[:-1]
+                    line = line[:-1]       #ID     #LAT     #LONG
                     nodes_location.append([line[0],line[8],line[9]])
 
         self.__total_num_nodes = len(nodes_location)
@@ -352,7 +352,7 @@ class Graph():
     epsilon_array = [0.1, 0.3, 0.5, 0.7]
     sigma_array = [1, 3, 5, 10]
 
-    def __init__(self, epsilon : float, sigma : int ,size : DatasetSize, data_reader : DataReader) -> None :
+    def __init__(self, epsilon : float, sigma : int ,size : DatasetSize, distanceType : DistanceType, data_reader : DataReader) -> None :
         r"""
             Constructor, makes the processing and data saving.
 
@@ -366,6 +366,7 @@ class Graph():
         self.__epsilon = epsilon
         self.__sigma = sigma
         self.__size = size
+        self.__distanceType = distanceType
         self.__data_reader = data_reader
         self.edge_index = []
         self.edge_weight = []
@@ -428,9 +429,10 @@ class Graph():
             epsilon = info[0]           
             sigma = info[1]           
             size = info[2]
-            self.__save_graph(nodes_location,epsilon,sigma,size)
+            distanceType = info[3]
+            self.__save_graph(nodes_location,epsilon,sigma,size,distanceType)
 
-    def __save_graph(self,nodes_location : list ,epsilon : float ,sigma : int ,size : DatasetSize) -> None:
+    def __save_graph(self,nodes_location : list ,epsilon : float ,sigma : int ,size : DatasetSize,distanceType : DistanceType) -> None:
         r"""
             Save a graph by a configuration.
             Instance function.
@@ -456,37 +458,35 @@ class Graph():
 
         if size == DatasetSize.ExperimentalManual:
             edge_index = Constants.edge_index_Experimental_manual
-            edge_weight = Constants.edge_weight_Experimental_manual
         elif size == DatasetSize.TinyManual:
             edge_index = Constants.edge_index_Tiny_manual
-            edge_weight = Constants.edge_weight_Tiny_manual
         else:
             edge_index = []
-            edge_weight = []
-            nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
-            self.num_nodes = len(nodes_location)
-            print("Saving graph with configuration : epsilon = {0}, sigma = {1}, size = {2}".format(str(epsilon),str(sigma),str(size.name)))
-            for i in range(len(nodes_location) - 1):
-                for j in range(i,len(nodes_location) - 1):
-                    if i != j:
-                        p1 = (nodes_location[i][1],nodes_location[i][2])
-                        p2 = (nodes_location[j][1],nodes_location[j][2])
-                        weight = Graph.__get_adjency_matrix_weight(p1,p2,epsilon,sigma)
-                        if weight > 0:
-                            edge_index.append([i,j])
-                            edge_weight.append(weight)
+        edge_weight = []
+        
+        nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
+        self.num_nodes = len(nodes_location)
+        print("Saving graph with configuration : epsilon = {0}, sigma = {1}, size = {2}".format(str(epsilon),str(sigma),str(size.name)))
+        for i in range(len(nodes_location) - 1):
+            for j in range(i,len(nodes_location) - 1):
+                if i != j:
+                    p1 = (nodes_location[i][1],nodes_location[i][2])
+                    p2 = (nodes_location[j][1],nodes_location[j][2])
+                    
+                    weight_geodesic = Graph.__get_adjency_matrix_weight(p1,p2,epsilon,sigma,distanceType)
+                    if weight_geodesic > 0:
+                        edge_index.append([i,j])
+                        edge_weight.append(weight_geodesic)
 
-            edge_index = np.transpose(edge_index)
-            name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-            name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-            np.save(name_index,edge_index)
-            np.save(name_weight,edge_weight)
-
-        if size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual:
-            name_weight = os.path.join(name_folder_weight,'weight_{0}.npy'.format(str(size.name)))
-            name_index = os.path.join(name_folder_index,'index_{0}.npy'.format(str(size.name)))
-            np.save(name_index,edge_index)
-            np.save(name_weight,edge_weight)
+        edge_index = np.transpose(edge_index)
+        if not(size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual):
+            name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}_{3}.npy'.format(distanceType.name,str(epsilon),str(sigma),str(size.name)))
+            name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}_{3}.npy'.format(distanceType.name,str(epsilon),str(sigma),str(size.name)))
+        else:
+            name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}.npy'.format(distanceType.name,str(size.name)))
+            name_index = os.path.join(name_folder_index,'index_{0}_{1}.npy'.format(distanceType.name,str(size.name)))
+        np.save(name_index,edge_index)
+        np.save(name_weight,edge_weight)
 
     def __set_graph_info(self) -> None:
         r"""
@@ -546,24 +546,21 @@ class Graph():
 
         for epsilon in Graph.epsilon_array:
             for sigma in Graph.sigma_array:
-                for size in DatasetSize:
-                    if size != DatasetSize.All and size != DatasetSize.ExperimentalLR and size != DatasetSize.TinyLR and size != DatasetSize.ExperimentalManual and size != DatasetSize.TinyManual:
-                        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-                        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-                        if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
-                            list_to_add.append([epsilon,sigma,size])
+                for distanceType in DistanceType:
+                    for size in DatasetSize:
+                        if size != DatasetSize.All and size != DatasetSize.ExperimentalLR and size != DatasetSize.TinyLR and size != DatasetSize.ExperimentalManual and size != DatasetSize.TinyManual:
+                            name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}_{2}_{3}.npy'.format(distanceType.name,str(epsilon),str(sigma),str(size.name)))
+                            name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}_{2}_{3}.npy'.format(distanceType.name,str(epsilon),str(sigma),str(size.name)))
+                            if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
+                                list_to_add.append([epsilon,sigma,size,distanceType])
+        for distanceType in DistanceType:
+            for size in DatasetSize:
+                if size == DatasetSize.ExperimentalManual and size == DatasetSize.TinyManual:
+                    name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}.npy'.format(distanceType.name,size.name))
+                    name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}.npy'.format(distanceType.name,size.name)))
+                    if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
+                        list_to_add.append([0,0,size,distanceType])
 
-        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_ExperimentalManual.npy')
-        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_ExperimentalManual.npy')
-        
-        if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
-            list_to_add.append([0,0,DatasetSize.ExperimentalManual])
-
-        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_TinyManual.npy')
-        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_TinyManual.npy')
-        
-        if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
-            list_to_add.append([0,0,DatasetSize.TinyManual])
         return list_to_add
 
     def get_nodes_ids_by_size(size : DatasetSize) -> list:
@@ -615,8 +612,22 @@ class Graph():
             return weight
         else:
             return 0
-    
-    
+
+    def extract_time(json):
+        try:
+            return float(json.routes.distance)
+        except KeyError:
+            return 0
+
+    def __OSRM(p1 : tuple,p2 : tuple) -> float:
+        response = requests.get("http://router.project-osrm.org/route/v1/driving/{p1[1]},{p1[2]};{p2[2]},{p2[1]}")
+        responseJson = response.json()
+        if responseJson.code == "Ok":
+            routes = responseJson.routes
+            routes.sort(key=Graph.extract_time, reverse=True)
+            return routes[0].distance * 1000
+        return
+
     #endregion
 
     

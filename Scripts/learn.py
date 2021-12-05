@@ -661,32 +661,6 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.SARIMA)
-
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.Tiny, model=ModelType.LSTM,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyManual, model=ModelType.LSTM,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyLR, model=ModelType.LSTM,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalManual,
-                                   model=ModelType.LSTM, datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalLR,
-                                   model=ModelType.LSTM, datareader=datareader, experiment_name=experiment_name)
-
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.Tiny, model=ModelType.STCONV,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyManual, model=ModelType.STCONV,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyLR, model=ModelType.STCONV,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalManual,
-                                   model=ModelType.STCONV, datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalLR,
-                                   model=ModelType.STCONV, datareader=datareader, experiment_name=experiment_name)
-
         for datasize in DatasetSize:
             Learn.HyperParameterTuning(datasetsize=datasize, model=ModelType.DCRNN,
                                        datareader=datareader, experiment_name=experiment_name)
