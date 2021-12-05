@@ -557,7 +557,7 @@ class Graph():
             for size in DatasetSize:
                 if size == DatasetSize.ExperimentalManual and size == DatasetSize.TinyManual:
                     name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}.npy'.format(distanceType.name,size.name))
-                    name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}.npy'.format(distanceType.name,size.name)))
+                    name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}.npy'.format(distanceType.name,size.name))
                     if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
                         list_to_add.append([0,0,size,distanceType])
 
