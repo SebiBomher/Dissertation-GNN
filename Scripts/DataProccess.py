@@ -9,10 +9,11 @@ from typing import Tuple, Union
 from geopy.distance import geodesic
 from glob import glob
 from sklearn.preprocessing import normalize
-from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders, ModelType
+from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, DistanceType, Folders, ModelType
 from sklearn.linear_model import LinearRegression
-
+import requests
 #endregion
+
 
 class DataReader():
     r"""
@@ -58,15 +59,15 @@ class DataReader():
         self.Y = []
         self.nodes_location = []
         self.nb_days = 0
-        if (not os.path.isdir(os.path.join(self.__path_proccessed_data,"STCONV")) or 
-        not os.path.isdir(os.path.join(self.__path_proccessed_data,"LSTM")) or 
-        not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeWeight")) or
-        not os.path.isdir(os.path.join(self.__path_proccessed_data,"Data_EdgeIndex")) or
-        not os.path.isdir(os.path.join(self.__path_proccessed_data,"LinearRegression"))):
+        if (not os.path.isdir(os.path.join(self.__path_proccessed_data, "STCONV")) or
+            not os.path.isdir(os.path.join(self.__path_proccessed_data, "LSTM")) or
+            not os.path.isdir(os.path.join(self.__path_proccessed_data, "Data_EdgeWeight")) or
+            not os.path.isdir(os.path.join(self.__path_proccessed_data, "Data_EdgeIndex")) or
+                not os.path.isdir(os.path.join(self.__path_proccessed_data, "LinearRegression"))):
             self.start()
-            Graph(epsilon=0.1,sigma=3,size=DatasetSize.Medium,data_reader=self)
+            Graph(epsilon=0.1, sigma=3, size=DatasetSize.Medium, data_reader=self)
     #endregion
-    
+
     #region Instance Functions
     def MergeCSV(type : ModelType,experiment_path : str,columnsInfo : list) -> None:
         File = os.path.join(experiment_path,"{0}.csv".format(type.name))
@@ -112,7 +113,7 @@ class DataReader():
         self.__read_data()
         self.__read_nodes_data()
 
-    def visualization(self) -> Tuple[pd.DataFrame,pd.DataFrame]:
+    def visualization(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         r"""
             Reads the Metadata information and Data information for data visualization.
             Instance Function.
@@ -121,62 +122,64 @@ class DataReader():
         """
 
         columnsInfo = ['Timestamp',
-                    'Station',
-                    'District',
-                    'Freeway',
-                    'DirOfTravel',
-                    'LaneType',
-                    'Length',
-                    'Samples',
-                    'Observed',
-                    'Flow',
-                    'Occupancy',
-                    'Speed']
-        for i in range(1,9):
+                       'Station',
+                       'District',
+                       'Freeway',
+                       'DirOfTravel',
+                       'LaneType',
+                       'Length',
+                       'Samples',
+                       'Observed',
+                       'Flow',
+                       'Occupancy',
+                       'Speed']
+        for i in range(1, 9):
             columnsInfo.extend([str(i) + '_Samples',
-                            str(i) + '_Flow',
-                            str(i) + '_Occupancy',
-                            str(i) + '_Speed',
-                            str(i) + '_Observed'])
+                                str(i) + '_Flow',
+                                str(i) + '_Occupancy',
+                                str(i) + '_Speed',
+                                str(i) + '_Observed'])
         columnsMetadata = ['ID',
-                            'Fwy',
-                            'Dir',
-                            'District',
-                            'County',
-                            'City',
-                            'State_PM',
-                            'Abs_PM',
-                            'Latitude',
-                            'Longitude',
-                            'Length',
-                            'Type',
-                            'Lanes',
-                            'Name',
-                            'User_ID_1',
-                            'User_ID_2',
-                            'User_ID_3',
-                            'User_ID_4']
-        txtFiles = os.path.join(self.__path_raw_data,"*","*.txt")
-        info_data =  os.path.join(self.__path_raw_data,self.__graph_info_txt)
+                           'Fwy',
+                           'Dir',
+                           'District',
+                           'County',
+                           'City',
+                           'State_PM',
+                           'Abs_PM',
+                           'Latitude',
+                           'Longitude',
+                           'Length',
+                           'Type',
+                           'Lanes',
+                           'Name',
+                           'User_ID_1',
+                           'User_ID_2',
+                           'User_ID_3',
+                           'User_ID_4']
+        txtFiles = os.path.join(self.__path_raw_data, "*", "*.txt")
+        info_data = os.path.join(self.__path_raw_data, self.__graph_info_txt)
         print("Reading Metadata")
-        dataframeMetadata = pd.read_csv(info_data,sep = '\t', skiprows=1, header=None, names = columnsMetadata)
+        dataframeMetadata = pd.read_csv(
+            info_data, sep='\t', skiprows=1, header=None, names=columnsMetadata)
         print("Finished Reading Metadata")
         print("Reading Information")
         nb_days = 0
-        dataframeInfo = pd.DataFrame(columns = columnsInfo)
+        dataframeInfo = pd.DataFrame(columns=columnsInfo)
 
         for file in glob(txtFiles):
             print("Reading day {0}".format(nb_days + 1))
             with open(file) as f:
-                dataframeInfo = dataframeInfo.append(pd.read_csv(file, sep = ',', header=None,names = columnsInfo),ignore_index=True)
+                dataframeInfo = dataframeInfo.append(pd.read_csv(
+                    file, sep=',', header=None, names=columnsInfo), ignore_index=True)
                 day = None
                 nb_days += 1
-            
+
             if nb_days == 5:
                 break
 
         print("Finished Reading Information")
-        return dataframeInfo ,dataframeMetadata
+        return dataframeInfo, dataframeMetadata
 
     def __get_number_of_nodes(self) -> None:
         r"""
@@ -186,7 +189,7 @@ class DataReader():
             Returns None.
         """
 
-        info_data = os.path.join(self.__path_raw_data,self.__graph_info_txt)
+        info_data = os.path.join(self.__path_raw_data, self.__graph_info_txt)
         nodes_location = []
         skip = True
         with open(info_data) as f:
@@ -196,12 +199,12 @@ class DataReader():
                     skip = False
                 else:
                     line = line.split('\t')
-                    line = line[:-1]
-                    nodes_location.append([line[0],line[8],line[9]])
+                    line = line[:-1]  # ID     #LAT     #LONG
+                    nodes_location.append([line[0], line[8], line[9]])
 
         self.__total_num_nodes = len(nodes_location)
 
-    def __get_good_empty_nodes(self) -> None :
+    def __get_good_empty_nodes(self) -> None:
         r"""
             Set empty_nodes and good_nodes from Data (may contain data from empty nodes).
             Instance Function.
@@ -213,24 +216,24 @@ class DataReader():
         index = self.__total_num_nodes
         empty_nodes = []
         good_nodes = []
-        txtFiles = os.path.join(self.__path_raw_data,"*","*.txt")
+        txtFiles = os.path.join(self.__path_raw_data, "*", "*.txt")
         for file in glob(txtFiles):
             with open(file) as f:
                 content = f.readlines()
                 for line in content:
                     line = line.split(',')
-                    line = [line1.replace("\n","") for line1 in line]
+                    line = [line1.replace("\n", "") for line1 in line]
                     if not (line[9] == '' or line[10] == '' or line[11] == ''):
                         good_nodes.append((int)(line[1]))
                     else:
                         empty_nodes.append((int)(line[1]))
-                    index -=1
+                    index -= 1
                     if index == 0:
                         self.good_nodes = good_nodes
                         self.empty_nodes = empty_nodes
                         return
 
-    def get_clean_data_by_nodes(self, size : DatasetSize) -> Tuple[list,list]:
+    def get_clean_data_by_nodes(self, size: DatasetSize) -> Tuple[list, list]:
         r"""
             Returns data for a specific datasize.
             Instance Function.
@@ -243,16 +246,16 @@ class DataReader():
         new_Y = []
         nodes_index = 0
         nodes_ids = Graph.get_nodes_ids_by_size(size)
-        for index,tuple in enumerate(zip(self.X,self.Y)):
+        for index, tuple in enumerate(zip(self.X, self.Y)):
             if int(self.nodes_location[nodes_index][0]) in nodes_ids:
                 new_X.append(tuple[0])
                 new_Y.append([tuple[1]])
-            nodes_index +=1
+            nodes_index += 1
             if nodes_index == len(self.nodes_location):
                 nodes_index = 0
-        return new_X,new_Y
+        return new_X, new_Y
 
-    def __read_data(self) -> None :
+    def __read_data(self) -> None:
         r"""
             Set data and labels (X and Y) from Data (may contain data from empty nodes).
             Instance Function.
@@ -262,7 +265,7 @@ class DataReader():
 
         X = []
         Y = []
-        txtFiles = os.path.join(self.__path_raw_data,"*","*.txt")
+        txtFiles = os.path.join(self.__path_raw_data, "*", "*.txt")
         nb_days = 0
         for file in glob(txtFiles):
             with open(file) as f:
@@ -270,24 +273,24 @@ class DataReader():
                 content = f.readlines()
                 for line in content:
                     line = line.split(',')
-                    line = [line1.replace("\n","") for line1 in line]
+                    line = [line1.replace("\n", "") for line1 in line]
                     if not(line[9] == '' or line[10] == '' or line[11] == ''):
                         Y.append((float)(line[11]))
-                        X.append([(float)(line[9]),(float)(line[10])])
+                        X.append([(float)(line[9]), (float)(line[10])])
             nb_days += 1
         self.X = normalize(np.array(X))
         self.Y = Y
         self.nb_days = nb_days
 
-    def __read_nodes_data(self) -> None :
+    def __read_nodes_data(self) -> None:
         r"""
             Set nodes_location from Metadata (may contain data from empty nodes).
             Instance Function.
             No Arguments.
             Returns None.
         """
-        
-        info_data =  os.path.join(self.__path_raw_data,self.__graph_info_txt)
+
+        info_data = os.path.join(self.__path_raw_data, self.__graph_info_txt)
         nodes_location = []
         skip = True
         with open(info_data) as f:
@@ -299,10 +302,11 @@ class DataReader():
                     line = line.split('\t')
                     line = line[:-1]
                     if (int)(line[0]) in self.good_nodes:
-                        nodes_location.append([line[0],line[8],line[9]])
+                        nodes_location.append([line[0], line[8], line[9]])
         self.nodes_location = nodes_location
 
     #endregion
+
 
 class Graph():
     r"""
@@ -350,7 +354,7 @@ class Graph():
     epsilon_array = [0.1, 0.3, 0.5, 0.7]
     sigma_array = [1, 3, 5, 10]
 
-    def __init__(self, epsilon : float, sigma : int ,size : DatasetSize, data_reader : DataReader) -> None :
+    def __init__(self, epsilon: float, sigma: int, size: DatasetSize, distanceType: DistanceType, data_reader: DataReader) -> None:
         r"""
             Constructor, makes the processing and data saving.
 
@@ -364,6 +368,7 @@ class Graph():
         self.__epsilon = epsilon
         self.__sigma = sigma
         self.__size = size
+        self.__distanceType = distanceType
         self.__data_reader = data_reader
         self.edge_index = []
         self.edge_weight = []
@@ -373,7 +378,7 @@ class Graph():
         self.__set_nodes()
         self.__process_graph_info()
         self.__set_graph_info()
-        
+
     #endregion
 
     #region Instance Functions
@@ -407,11 +412,12 @@ class Graph():
                 nodes = good_nodes
                 Size = DatasetSize.All
             else:
-                number_of_nodes =  Graph.get_number_nodes_by_size(size)
+                number_of_nodes = Graph.get_number_nodes_by_size(size)
                 nodes = sample(good_nodes, number_of_nodes)
                 Size = size
-            name_nodes = os.path.join(self.__path_processed_data,'nodes_{0}.npy'.format(str(Size.name)))
-            np.save(name_nodes,nodes)
+            name_nodes = os.path.join(
+                self.__path_processed_data, 'nodes_{0}.npy'.format(str(Size.name)))
+            np.save(name_nodes, nodes)
 
     def __process_graph_info(self) -> None:
         r"""
@@ -423,12 +429,14 @@ class Graph():
         nodes_location = self.__data_reader.nodes_location
         list_to_add = Graph.__get_tuple_to_add_graph()
         for info in list_to_add:
-            epsilon = info[0]           
-            sigma = info[1]           
+            epsilon = info[0]
+            sigma = info[1]
             size = info[2]
-            self.__save_graph(nodes_location,epsilon,sigma,size)
+            distanceType = info[3]
+            self.__save_graph(nodes_location, epsilon,
+                              sigma, size, distanceType)
 
-    def __save_graph(self,nodes_location : list ,epsilon : float ,sigma : int ,size : DatasetSize) -> None:
+    def __save_graph(self, nodes_location: list, epsilon: float, sigma: int, size: DatasetSize, distanceType: DistanceType) -> None:
         r"""
             Save a graph by a configuration.
             Instance function.
@@ -441,8 +449,10 @@ class Graph():
         """
 
         nodes = Graph.get_nodes_ids_by_size(size)
-        name_folder_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight')
-        name_folder_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex')
+        name_folder_weight = os.path.join(
+            self.__path_processed_data, 'Data_EdgeWeight')
+        name_folder_index = os.path.join(
+            self.__path_processed_data, 'Data_EdgeIndex')
 
         if not os.path.exists(name_folder_weight):
             os.makedirs(name_folder_weight)
@@ -450,41 +460,44 @@ class Graph():
         if not os.path.exists(name_folder_index):
             os.makedirs(name_folder_index)
 
-        
-
         if size == DatasetSize.ExperimentalManual:
             edge_index = Constants.edge_index_Experimental_manual
-            edge_weight = Constants.edge_weight_Experimental_manual
         elif size == DatasetSize.TinyManual:
             edge_index = Constants.edge_index_Tiny_manual
-            edge_weight = Constants.edge_weight_Tiny_manual
         else:
             edge_index = []
-            edge_weight = []
-            nodes_location = [node for node in nodes_location if (int)(node[0]) in nodes]
-            self.num_nodes = len(nodes_location)
-            print("Saving graph with configuration : epsilon = {0}, sigma = {1}, size = {2}".format(str(epsilon),str(sigma),str(size.name)))
-            for i in range(len(nodes_location) - 1):
-                for j in range(i,len(nodes_location) - 1):
-                    if i != j:
-                        p1 = (nodes_location[i][1],nodes_location[i][2])
-                        p2 = (nodes_location[j][1],nodes_location[j][2])
-                        weight = Graph.__get_adjency_matrix_weight(p1,p2,epsilon,sigma)
-                        if weight > 0:
-                            edge_index.append([i,j])
-                            edge_weight.append(weight)
+        edge_weight = []
 
-            edge_index = np.transpose(edge_index)
-            name_weight = os.path.join(name_folder_weight,'weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-            name_index = os.path.join(name_folder_index,'index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-            np.save(name_index,edge_index)
-            np.save(name_weight,edge_weight)
+        nodes_location = [
+            node for node in nodes_location if (int)(node[0]) in nodes]
+        self.num_nodes = len(nodes_location)
+        print("Saving graph with configuration : epsilon = {0}, sigma = {1}, size = {2}".format(
+            str(epsilon), str(sigma), str(size.name)))
+        for i in range(len(nodes_location) - 1):
+            for j in range(i, len(nodes_location) - 1):
+                if i != j:
+                    p1 = (nodes_location[i][1], nodes_location[i][2])
+                    p2 = (nodes_location[j][1], nodes_location[j][2])
 
-        if size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual:
-            name_weight = os.path.join(name_folder_weight,'weight_{0}.npy'.format(str(size.name)))
-            name_index = os.path.join(name_folder_index,'index_{0}.npy'.format(str(size.name)))
-            np.save(name_index,edge_index)
-            np.save(name_weight,edge_weight)
+                    weight_geodesic = Graph.__get_adjency_matrix_weight(
+                        p1, p2, epsilon, sigma, distanceType)
+                    if weight_geodesic > 0:
+                        edge_index.append([i, j])
+                        edge_weight.append(weight_geodesic)
+
+        edge_index = np.transpose(edge_index)
+        if not(size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual):
+            name_weight = os.path.join(name_folder_weight, 'weight_{0}_{1}_{2}_{3}.npy'.format(
+                distanceType.name, str(epsilon), str(sigma), str(size.name)))
+            name_index = os.path.join(name_folder_index, 'index_{0}_{1}_{2}_{3}.npy'.format(
+                distanceType.name, str(epsilon), str(sigma), str(size.name)))
+        else:
+            name_weight = os.path.join(name_folder_weight, 'weight_{0}_{1}.npy'.format(
+                distanceType.name, str(size.name)))
+            name_index = os.path.join(name_folder_index, 'index_{0}_{1}.npy'.format(
+                distanceType.name, str(size.name)))
+        np.save(name_index, edge_index)
+        np.save(name_weight, edge_weight)
 
     def __set_graph_info(self) -> None:
         r"""
@@ -494,16 +507,20 @@ class Graph():
             Returns Nothing.
         """
         if self.__size == DatasetSize.ExperimentalManual or self.__size == DatasetSize.TinyManual or self.__size == DatasetSize.ExperimentalLR or self.__size == DatasetSize.TinyLR:
-            name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}.npy'.format(str(self.__size.name)))
+            name_weight = os.path.join(
+                self.__path_processed_data, 'Data_EdgeWeight', 'weight_{0}.npy'.format(str(self.__size.name)))
             self.edge_weight = np.load(name_weight)
 
-            name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}.npy'.format(str(self.__size.name)))
+            name_index = os.path.join(
+                self.__path_processed_data, 'Data_EdgeIndex', 'index_{0}.npy'.format(str(self.__size.name)))
             self.edge_index = np.load(name_index)
         else:
-            name_weight = os.path.join(self.__path_processed_data,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__sigma),str(self.__size.name)))
+            name_weight = os.path.join(self.__path_processed_data, 'Data_EdgeWeight', 'weight_{0}_{1}_{2}.npy'.format(
+                str(self.__epsilon), str(self.__sigma), str(self.__size.name)))
             self.edge_weight = np.load(name_weight)
 
-            name_index = os.path.join(self.__path_processed_data,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(self.__epsilon),str(self.__sigma),str(self.__size.name)))
+            name_index = os.path.join(self.__path_processed_data, 'Data_EdgeIndex', 'index_{0}_{1}_{2}.npy'.format(
+                str(self.__epsilon), str(self.__sigma), str(self.__size.name)))
             self.edge_index = np.load(name_index)
 
     #endregion
@@ -518,7 +535,7 @@ class Graph():
             Returns bool.
         """
         return len(Graph.__get_tuple_to_add_nodes()) > 0 and len(Graph.__get_tuple_to_add_graph()) > 0
-    
+
     def __get_tuple_to_add_nodes() -> list:
         r"""
             Function which retrieves which datasets need nodes to be implemented and saved.
@@ -528,7 +545,8 @@ class Graph():
         """
         sizes_to_add = []
         for size in DatasetSize:
-            name_nodes = os.path.join(Folders.proccessed_data_path,'nodes_{0}.npy'.format(str(size.name)))
+            name_nodes = os.path.join(
+                Folders.proccessed_data_path, 'nodes_{0}.npy'.format(str(size.name)))
             if not os.path.isfile(name_nodes):
                 sizes_to_add.append(size)
         return sizes_to_add
@@ -544,27 +562,29 @@ class Graph():
 
         for epsilon in Graph.epsilon_array:
             for sigma in Graph.sigma_array:
-                for size in DatasetSize:
-                    if size != DatasetSize.All and size != DatasetSize.ExperimentalLR and size != DatasetSize.TinyLR and size != DatasetSize.ExperimentalManual and size != DatasetSize.TinyManual:
-                        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-                        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_{0}_{1}_{2}.npy'.format(str(epsilon),str(sigma),str(size.name)))
-                        if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
-                            list_to_add.append([epsilon,sigma,size])
+                for distanceType in DistanceType:
+                    for size in DatasetSize:
+                        if size != DatasetSize.All and size != DatasetSize.ExperimentalLR and size != DatasetSize.TinyLR and size != DatasetSize.ExperimentalManual and size != DatasetSize.TinyManual:
+                            name_weight = os.path.join(Folders.proccessed_data_path, 'Data_EdgeWeight', 'weight_{0}_{1}_{2}_{3}.npy'.format(
+                                distanceType.name, str(epsilon), str(sigma), str(size.name)))
+                            name_index = os.path.join(Folders.proccessed_data_path, 'Data_EdgeIndex', 'index_{0}_{1}_{2}_{3}.npy'.format(
+                                distanceType.name, str(epsilon), str(sigma), str(size.name)))
+                            if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
+                                list_to_add.append(
+                                    [epsilon, sigma, size, distanceType])
+        for distanceType in DistanceType:
+            for size in DatasetSize:
+                if size == DatasetSize.ExperimentalManual and size == DatasetSize.TinyManual:
+                    name_weight = os.path.join(Folders.proccessed_data_path, 'Data_EdgeWeight', 'weight_{0}_{1}.npy'.format(
+                        distanceType.name, size.name))
+                    name_index = os.path.join(Folders.proccessed_data_path, 'Data_EdgeIndex', 'index_{0}_{1}.npy'.format(
+                        distanceType.name, size.name))
+                    if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
+                        list_to_add.append([0, 0, size, distanceType])
 
-        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_ExperimentalManual.npy')
-        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_ExperimentalManual.npy')
-        
-        if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
-            list_to_add.append([0,0,DatasetSize.ExperimentalManual])
-
-        name_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight','weight_TinyManual.npy')
-        name_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex','index_TinyManual.npy')
-        
-        if not(os.path.isfile(name_index) and os.path.isfile(name_weight)):
-            list_to_add.append([0,0,DatasetSize.TinyManual])
         return list_to_add
 
-    def get_nodes_ids_by_size(size : DatasetSize) -> list:
+    def get_nodes_ids_by_size(size: DatasetSize) -> list:
         r"""
             Instance function.
             Returns graph nodes ids based by size.
@@ -576,10 +596,11 @@ class Graph():
             Size = DatasetSize.Tiny
         else:
             Size = size
-        name_nodes = os.path.join(Folders.proccessed_data_path,'nodes_{0}.npy'.format(str(Size.name)))
+        name_nodes = os.path.join(
+            Folders.proccessed_data_path, 'nodes_{0}.npy'.format(str(Size.name)))
         return np.load(name_nodes)
 
-    def get_number_nodes_by_size(size : DatasetSize) -> int:
+    def get_number_nodes_by_size(size: DatasetSize) -> int:
         r"""
             Returns the number of nodes by size.
             Class function.
@@ -596,7 +617,7 @@ class Graph():
         elif size == DatasetSize.Tiny or size == DatasetSize.TinyManual or size == DatasetSize.TinyLR:
             return DatasetSizeNumber.Tiny.value
 
-    def __get_adjency_matrix_weight(p1 : tuple,p2 : tuple,epsilon : float ,sigma : int) -> float:
+    def __get_adjency_matrix_weight(p1: tuple, p2: tuple, epsilon: float, sigma: int) -> float:
         r"""
             Gets the weight of 2 nodes based on sigma and epsilon (see documentation for further information).
             Class Function.
@@ -607,14 +628,27 @@ class Graph():
                 sigma : int, sigma from epsilon array
             Returns Float.
         """
-        distance = geodesic(p1,p2).km
+        distance = geodesic(p1, p2).km
         weight = math.exp(-((distance ** 2)/(sigma ** 2)))
         if weight >= epsilon:
             return weight
         else:
             return 0
-    
-    
-    #endregion
 
-    
+    def extract_time(json):
+        try:
+            return float(json.routes.distance)
+        except KeyError:
+            return 0
+
+    def __OSRM(p1: tuple, p2: tuple) -> float:
+        response = requests.get(
+            "http://router.project-osrm.org/route/v1/driving/{p1[1]},{p1[2]};{p2[2]},{p2[1]}")
+        responseJson = response.json()
+        if responseJson.code == "Ok":
+            routes = responseJson.routes
+            routes.sort(key=Graph.extract_time, reverse=True)
+            return routes[0].distance * 1000
+        return
+
+    #endregion
