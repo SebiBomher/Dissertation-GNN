@@ -11,7 +11,7 @@ from ray import tune
 from torch import nn
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
-from Scripts.Utility import Constants, DatasetSize,  ModelType, OptimizerType, Folders
+from Scripts.Utility import Constants, DatasetSize, DistanceType,  ModelType, OptimizerType, Folders
 from Scripts.Models import DCRNNModel, LSTMModel, STConvModel
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GridSearchCV
@@ -113,6 +113,7 @@ class Learn():
         self.nb_epoch = param["nb_epoch"]
         self.datareader = param["datareader"]
         self.num_features = param["num_features"]
+        self.distanceType = param["distanceType"]
         self.device = Constants.device
 
     def Init(self, datareader: DataReader, model_type: ModelType):
@@ -438,6 +439,7 @@ class Learn():
                 epsilon=self.epsilon,
                 sigma=self.sigma,
                 nodes_size=self.nodes_size,
+                distanceType=self.distanceType,
                 datareader=self.datareader,
                 device=self.device)
 
@@ -455,8 +457,10 @@ class Learn():
                 epsilon=self.epsilon,
                 sigma=self.sigma,
                 nodes_size=self.nodes_size,
+                distanceType=self.distanceType,
                 datareader=self.datareader,
                 device=self.device)
+
             self.model = LSTMModel(
                 node_features=self.num_features, hidden_channels=self.hidden_channels, K=self.K)
 
@@ -468,6 +472,7 @@ class Learn():
                 epsilon=self.epsilon,
                 sigma=self.sigma,
                 nodes_size=self.nodes_size,
+                distanceType=self.distanceType,
                 datareader=self.datareader,
                 device=self.device)
             self.model = DCRNNModel(
@@ -550,7 +555,7 @@ class Learn():
     def trail_dirname_creator(trial):
         return f"{trial.config['model_type'].name}_{trial.config['nodes_size'].name}_{datetime.now().strftime('%d_%m_%Y-%H_%M_%S')}"
 
-    def HyperParameterTuning(datasetsize: DatasetSize, model: ModelType, datareader: DataReader, experiment_name: str) -> None:
+    def HyperParameterTuning(datasetsize: DatasetSize, model: ModelType, distanceType : DistanceType, datareader: DataReader, experiment_name: str) -> None:
         r"""
             Function for hyper parameter tuning, it receives a datasetsize, model type, data reader and a loss function as a criterion, returns nothing.
             Creates parameters for the function for the hyper parameter tuning.
@@ -577,7 +582,8 @@ class Learn():
             "train_ratio": Constants.train_ratio,
             "val_ratio": Constants.val_ratio,
             "test_ratio": Constants.test_ratio,
-            "experiment_name": experiment_name
+            "experiment_name": experiment_name,
+            "distanceType": distanceType
         }
         config = {
             "K": tune.choice([1, 3, 5, 7]),
@@ -661,7 +667,5 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        for datasize in DatasetSize:
-            Learn.HyperParameterTuning(datasetsize=datasize, model=ModelType.DCRNN,
-                                       datareader=datareader, experiment_name=experiment_name)
+        
 #endregion

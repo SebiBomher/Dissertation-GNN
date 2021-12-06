@@ -6,7 +6,7 @@ import torch
 import numpy as np
 import glob
 from Scripts.DataProccess import DataReader, Graph
-from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, Folders
+from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, DistanceType, Folders
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
@@ -24,6 +24,7 @@ class DatasetClass(object):
                  sigma: int,
                  epsilon: float,
                  size: DatasetSize,
+                 distanceType: DistanceType,
                  datareader: DataReader,
                  device: str = 'cpu',
                  time_start: int = 0,
@@ -36,6 +37,7 @@ class DatasetClass(object):
         self.epsilon = epsilon
         self.time_start = time_start
         self.time_stop = time_stop
+        self.distanceType = distanceType
         self.data_reader = datareader
         self.size = size
         self.device = device
@@ -53,7 +55,7 @@ class DatasetClass(object):
             Returns None.
         """
         self.graph = Graph(self.epsilon, self.sigma,
-                           self.size, self.data_reader)
+                           self.size, self.distanceType, self.data_reader)
 
     def get_edge_index(self):
         r"""
@@ -227,8 +229,8 @@ class LinearRegressionDataset():
         """
         return not os.path.exists(os.path.join(os.path.join(Folders.proccessed_data_path, "LinearRegression"), 'Data'))
 
-    def get_previous_node_for_node_with_LR(datareader : DataReader, node : int, datasetsize: DatasetSize):
-        
+    def get_previous_node_for_node_with_LR(datareader: DataReader, node: int, datasetsize: DatasetSize):
+
         dataset = LinearRegressionDataset(datareader)
         nodes_ids = Graph.get_nodes_ids_by_size(datasetsize)
         data_list = []
@@ -242,16 +244,19 @@ class LinearRegressionDataset():
             if node == node_id:
                 labels_node = Y_train
         data_list = np.transpose(data_list)
-        regression = LinearRegression(positive = True).fit(data_list, labels_node)
+        regression = LinearRegression(
+            positive=True).fit(data_list, labels_node)
         coeffiecients = regression.coef_.tolist()
         results = zip(nodes_used, coeffiecients)
-        sorted_results = sorted(results, key=lambda tup: tup[1],reverse = True)
+        sorted_results = sorted(results, key=lambda tup: tup[1], reverse=True)
         best = sorted_results[:3]
         return [result[0] for result in best]
 
-    def set_graph_with_LR(datareader : DataReader,size : DatasetSize):
-        name_folder_weight = os.path.join(Folders.proccessed_data_path,'Data_EdgeWeight')
-        name_folder_index = os.path.join(Folders.proccessed_data_path,'Data_EdgeIndex')
+    def set_graph_with_LR(datareader: DataReader, size: DatasetSize):
+        name_folder_weight = os.path.join(
+            Folders.proccessed_data_path, 'Data_EdgeWeight')
+        name_folder_index = os.path.join(
+            Folders.proccessed_data_path, 'Data_EdgeIndex')
 
         if not os.path.exists(name_folder_weight):
             os.makedirs(name_folder_weight)
@@ -259,9 +264,11 @@ class LinearRegressionDataset():
         if not os.path.exists(name_folder_index):
             os.makedirs(name_folder_index)
 
-        name_weight = os.path.join(name_folder_weight,'weight_{0}LR.npy'.format(str(size.name)))
-        name_index = os.path.join(name_folder_index,'index_{0}LR.npy'.format(str(size.name)))
-        
+        name_weight = os.path.join(
+            name_folder_weight, 'weight_{0}LR.npy'.format(str(size.name)))
+        name_index = os.path.join(
+            name_folder_index, 'index_{0}LR.npy'.format(str(size.name)))
+
         if os.path.isfile(name_weight) and os.path.isfile(name_index):
             return
 
@@ -269,15 +276,17 @@ class LinearRegressionDataset():
         edge_index = []
         edge_weight = []
         for node in nodes_ids:
-            nodes_relevant = LinearRegressionDataset.get_previous_node_for_node_with_LR(datareader,node,size)
+            nodes_relevant = LinearRegressionDataset.get_previous_node_for_node_with_LR(
+                datareader, node, size)
             for node_relevant in nodes_relevant:
-                edge_index.append([nodes_ids.index(node_relevant),nodes_ids.index(node)])
+                edge_index.append(
+                    [nodes_ids.index(node_relevant), nodes_ids.index(node)])
         edge_index = [list(x) for x in set(tuple(x) for x in edge_index)]
         edge_weight = np.ones(len(edge_index))
         edge_index = np.transpose(edge_index)
-        
-        np.save(name_index,edge_index)
-        np.save(name_weight,edge_weight)
+
+        np.save(name_index, edge_index)
+        np.save(name_weight, edge_weight)
 
     #endregion
 
@@ -293,6 +302,7 @@ class LSTMDataset(DatasetClass):
                  sigma: int,
                  epsilon: float,
                  size: DatasetSize,
+                 distanceType: DistanceType,
                  datareader: DataReader,
                  device: str = 'cpu',
                  time_start: int = 0,
@@ -300,7 +310,8 @@ class LSTMDataset(DatasetClass):
         r"""
             Constructor. It also uses base class intialization.
         """
-        super().__init__(sigma, epsilon, size, datareader, device, time_start, time_stop)
+        super().__init__(sigma, epsilon, size, distanceType,
+                         datareader, device, time_start, time_stop)
         self.proccessed_data_path_model = os.path.join(
             self.proccessed_data_path, "LSTM")
         self.transform = transforms.Compose([transforms.ToTensor()])
@@ -334,28 +345,31 @@ class LSTMDataset(DatasetClass):
         time_test = time_train + int(test_ratio*self.snapshot_count)
 
         train_iterator = LSTMDataset(self.sigma,
-                                       self.epsilon,
-                                       self.size,
-                                       self.data_reader,
-                                       self.device,
-                                       0,
-                                       time_train + 1)
-
-        val_iterator = LSTMDataset(self.sigma,
                                      self.epsilon,
                                      self.size,
+                                     self.distanceType,
                                      self.data_reader,
                                      self.device,
-                                     time_train + 1,
-                                     time_test)
+                                     0,
+                                     time_train + 1)
+
+        val_iterator = LSTMDataset(self.sigma,
+                                   self.epsilon,
+                                   self.size,
+                                   self.distanceType,
+                                   self.data_reader,
+                                   self.device,
+                                   time_train + 1,
+                                   time_test)
 
         test_iterator = LSTMDataset(self.sigma,
-                                      self.epsilon,
-                                      self.size,
-                                      self.data_reader,
-                                      self.device,
-                                      time_test + 1,
-                                      self.snapshot_count)
+                                    self.epsilon,
+                                    self.size,
+                                    self.distanceType,
+                                    self.data_reader,
+                                    self.device,
+                                    time_test + 1,
+                                    self.snapshot_count)
 
         return train_iterator, val_iterator, test_iterator
 
@@ -484,12 +498,12 @@ class LSTMDataset(DatasetClass):
         """
         return len(LSTMDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "LSTM"))) > 0
 
-    def get_dataset_LSTM(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, datareader: DataReader, device: str):
+    def get_dataset_LSTM(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, distanceType: DistanceType, datareader: DataReader, device: str):
         r"""
             Function used in Learn to get train validation and test datasets for training
         """
         DataTraffic = LSTMDataset(
-            sigma, epsilon, nodes_size, datareader, device)
+            sigma, epsilon, nodes_size, distanceType, datareader, device)
         train, val, test = DataTraffic.__split_dataset(
             train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
         return train, val, test
@@ -529,12 +543,14 @@ class STConvDataset(DatasetClass):
                  sigma: int,
                  epsilon: float,
                  size: DatasetSize,
+                 distanceType: DistanceType,
                  datareader: DataReader,
                  device: str = 'cpu',
                  time_start: int = 0,
                  time_stop: float = -1):
 
-        super().__init__(sigma, epsilon, size, datareader, device, time_start, time_stop)
+        super().__init__(sigma, epsilon, size, distanceType,
+                         datareader, device, time_start, time_stop)
         self.proccessed_data_path_STCONV = os.path.join(
             self.proccessed_data_path, "STCONV")
         self.__check_temporal_consistency()
@@ -547,14 +563,16 @@ class STConvDataset(DatasetClass):
     def need_load(proccessed_data_path):
         return len(STConvDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "STCONV"))) > 0
 
-    def get_dataset_STCONV(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, datareader: DataReader, device: str):
-        DataTraffic = STConvDataset(sigma, epsilon, nodes_size, datareader, device)
+    def get_dataset_STCONV(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, distanceType: DistanceType, datareader: DataReader, device: str):
+        DataTraffic = STConvDataset(
+            sigma, epsilon, nodes_size, distanceType, datareader, device)
         train, val, test = DataTraffic.__split_dataset(
             train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
         return train, val, test
 
     def __set_snapshot_count(self):
-        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(self.size.name))), "X_*.npy"))
+        self.snapshot_count = len(glob.glob1(os.path.join(
+            self.proccessed_data_path_STCONV, "Data_{0}".format(str(self.size.name))), "X_*.npy"))
 
     def __split_dataset(self, train_ratio: float = 0.6, val_ratio: float = 0.2, test_ratio: float = 0.2):
         assert train_ratio + test_ratio + val_ratio == 1
@@ -564,6 +582,7 @@ class STConvDataset(DatasetClass):
         train_iterator = STConvDataset(self.sigma,
                                        self.epsilon,
                                        self.size,
+                                       self.distanceType,
                                        self.data_reader,
                                        self.device,
                                        0,
@@ -572,6 +591,7 @@ class STConvDataset(DatasetClass):
         test_iterator = STConvDataset(self.sigma,
                                       self.epsilon,
                                       self.size,
+                                      self.distanceType,
                                       self.data_reader,
                                       self.device,
                                       time_train + 1,
@@ -580,6 +600,7 @@ class STConvDataset(DatasetClass):
         val_iterator = STConvDataset(self.sigma,
                                      self.epsilon,
                                      self.size,
+                                     self.distanceType,
                                      self.data_reader,
                                      self.device,
                                      time_test + 1,
@@ -605,7 +626,7 @@ class STConvDataset(DatasetClass):
             X, time_steps, nodes_size)
         Y = STConvDataset.__arrange_data_for_time_step(
             Y, time_steps, nodes_size)
-        
+
         new_size = (int)(interval_per_day * datareader.nb_days / batch_size)
         data_size = len(X)
         if new_size * batch_size != data_size:
@@ -717,18 +738,3 @@ class STConvDataset(DatasetClass):
 
     def __len__(self):
         return self.snapshot_count
-
-
-class ARIMADataset():
-    def __init__():
-        return
-
-
-class RNNDataset():
-    def __init__():
-        return
-
-
-class VARMAXDataset():
-    def __init__():
-        return
