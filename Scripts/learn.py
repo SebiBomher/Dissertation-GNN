@@ -661,10 +661,11 @@ class Learn():
 
         for datasize in DatasetSize:
             if datasize != DatasetSize.All:
-                for model in ModelType:
-                    if model != ModelType.LinearRegression and model != ModelType.ARIMA and model != ModelType.SARIMA:
-                        Learn.HyperParameterTuning(
-                            datasetsize=datasize, model=model, datareader=datareader, experiment_name=experiment_name)
+                for distanceType in DistanceType:
+                    for model in ModelType:
+                        if model != ModelType.LinearRegression and model != ModelType.ARIMA and model != ModelType.SARIMA:
+                            Learn.HyperParameterTuning(
+                                datasetsize=datasize, model=model,distanceType=distanceType, datareader=datareader, experiment_name=experiment_name)
 
     def TestRun():
         Folders().CreateFolders()
@@ -681,5 +682,10 @@ class Learn():
         Learn.set_data(datareader=datareader)
 
         for datasize in DatasetSize:
-            Learn.HyperParameterTuning(datasetsize=datasize, model=ModelType.DCRNN,datareader=datareader, experiment_name=experiment_name)
+            if datasize != DatasetSize.All:
+                for model in ModelType:
+                    if model != ModelType.LinearRegression and model != ModelType.ARIMA and model != ModelType.SARIMA:
+                        Learn.HyperParameterTuning(
+                            datasetsize=datasize, model=model,distanceType=DistanceType.OSRM, datareader=datareader, experiment_name=experiment_name)
+
 #endregion

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from random import sample
 from typing import Tuple, Union
-from geopy.distance import geodesic
+from geopy.distance import Distance, geodesic
 from glob import glob
 from sklearn.preprocessing import normalize
 from Scripts.Utility import Constants, DatasetSize, DatasetSizeNumber, DistanceType, Folders
@@ -490,7 +490,8 @@ class Graph():
                     if weight_geodesic > 0:
                         edge_index.append([i, j])
                         edge_weight.append(weight_geodesic)
-
+                        
+        edge_weight = [float(i)/sum(edge_weight) for i in edge_weight]
         edge_index = np.transpose(edge_index)
         if not(size == DatasetSize.ExperimentalManual or size == DatasetSize.TinyManual):
             name_weight = os.path.join(name_folder_weight, 'weight_{0}_{1}_{2}_{3}.npy'.format(
@@ -623,7 +624,7 @@ class Graph():
         elif size == DatasetSize.Tiny or size == DatasetSize.TinyManual or size == DatasetSize.TinyLR:
             return DatasetSizeNumber.Tiny.value
 
-    def __get_adjency_matrix_weight(p1: tuple, p2: tuple, epsilon: float, sigma: int) -> float:
+    def __get_adjency_matrix_weight(p1: tuple, p2: tuple, epsilon: float, sigma: int, distanceType : DistanceType) -> float:
         r"""
             Gets the weight of 2 nodes based on sigma and epsilon (see documentation for further information).
             Class Function.
@@ -634,7 +635,10 @@ class Graph():
                 sigma : int, sigma from epsilon array
             Returns Float.
         """
-        distance = geodesic(p1, p2).km
+        if distanceType == DistanceType.Geodesic:
+            distance = geodesic(p1, p2).km
+        else:
+            distance = Graph.__OSRM(p1, p2)
         weight = math.exp(-((distance ** 2)/(sigma ** 2)))
         if weight >= epsilon:
             return weight
