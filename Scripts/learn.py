@@ -671,7 +671,9 @@ class Learn():
 
         if not os.path.exists(directory_experiment_ray):
             os.makedirs(directory_experiment_ray)
-        
+
+        Learn.set_data(datareader=datareader)
+
         for datasize in DatasetSize:
             Learn.HyperParameterTuning(datasetsize=datasize, model=ModelType.DCRNN,datareader=datareader, experiment_name=experiment_name)
 #endregion
