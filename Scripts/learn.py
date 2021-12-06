@@ -149,12 +149,16 @@ class Learn():
         edge_index = self.train_dataset.get_edge_index()
         edge_weight = self.train_dataset.get_edge_weight()
         for epoch in tqdm(range(self.nb_epoch)):
-            loss = 0
+            train_loss = 0
             for index, (x, y) in enumerate(dataloader):
                 X = x[0]
                 Y = y[0]
                 y_hat = self.model(X, edge_index, edge_weight)
-                loss += LossFunction.MAE(y_hat, Y)
+                loss = LossFunction.MAE(y_hat, Y)
+                train_loss += loss
+                loss.backward()
+                self.optimizer.step()
+                self.optimizer.zero_grad()
 
             # Validation Step at epoch end
             val_loss, dfResults = self.__val(dfResults, epoch)
@@ -167,14 +171,19 @@ class Learn():
 
             if epoch_no_improvement == 0:
                 print("Early stopping at epoch: {0}".format(epoch))
+                dfResults = self.__test(val_model, dfResults, epoch)
+                if not os.path.exists(os.path.join(Folders.results_path, experiment_name)):
+                    os.makedirs(os.path.join(
+                        Folders.results_path, experiment_name))
+                file_save = os.path.join(Folders.results_path, experiment_name, "{0}_{1}_{2}.csv".format(
+                    self.model_type.name, str(self.nodes_size.name), str(tune.get_trial_id())))
+                dfResults.to_csv(path_or_buf=file_save, index=False)
                 break
-            loss = loss / (index+1)
-            self.scheduler.step(loss)
-            loss.backward()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
+            
+            train_loss = train_loss / (index+1)
+            self.scheduler.step(train_loss)
             print("Epoch {0} : Validation loss {1} ; Train loss {2};".format(
-                epoch, val_loss, loss))
+                epoch, val_loss, train_loss))
 
             # test step if this is the last epoch
             # Save dataframe results
@@ -594,6 +603,10 @@ class Learn():
             "model_type": tune.choice([model]),
             "nodes_size": tune.choice([datasetsize])
         }
+
+        if model == ModelType.DCRNN:
+            config["K"] = tune.choice([1])
+
         if datasetsize != DatasetSize.ExperimentalManual and datasetsize != DatasetSize.ExperimentalLR and datasetsize != DatasetSize.TinyManual and datasetsize != DatasetSize.TinyLR:
             config["epsilon"] = tune.choice([0.1, 0.3, 0.5, 0.7])
             config["sigma"] = tune.choice([1, 3, 5, 10])
@@ -667,5 +680,6 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        
+        for datasize in DatasetSize:
+            Learn.HyperParameterTuning(datasetsize=datasize, model=ModelType.DCRNN,datareader=datareader, experiment_name=experiment_name)
 #endregion

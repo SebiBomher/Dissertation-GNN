@@ -13,15 +13,14 @@ class Constants():
 
     # Training parameters
     learning_rate: float = 0.01
-    EarlyStoppingPatience: int = 10
-    nb_epoch: int = 1
+    EarlyStoppingPatience: int = 5
+    nb_epoch: int = 30
     batch_size: int = 8
-    hidden_channels: int = 8
     time_steps = 1
 
     #Hyper Parameter Tuning Parameters
-    num_samples: int = 1
-    grace_period: int = 1
+    num_samples: int = 16
+    grace_period: int = 30
     reduction_factor: int = 3
 
     # Dataset split
@@ -128,7 +127,7 @@ class ModelType(Enum):
             LinearRegression = 2
     """
     LSTM = 0
-    GRU = 1
+    DCRNN = 1
     STCONV = 2
     LinearRegression = 3
     ARIMA = 4
