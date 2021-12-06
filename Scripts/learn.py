@@ -170,6 +170,13 @@ class Learn():
 
             if epoch_no_improvement == 0:
                 print("Early stopping at epoch: {0}".format(epoch))
+                dfResults = self.__test(val_model, dfResults, epoch)
+                if not os.path.exists(os.path.join(Folders.results_path, experiment_name)):
+                    os.makedirs(os.path.join(
+                        Folders.results_path, experiment_name))
+                file_save = os.path.join(Folders.results_path, experiment_name, "{0}_{1}_{2}.csv".format(
+                    self.model_type.name, str(self.nodes_size.name), str(tune.get_trial_id())))
+                dfResults.to_csv(path_or_buf=file_save, index=False)
                 break
             
             train_loss = train_loss / (index+1)
@@ -590,6 +597,10 @@ class Learn():
             "model_type": tune.choice([model]),
             "nodes_size": tune.choice([datasetsize])
         }
+
+        if model == ModelType.DCRNN:
+            config["K"] = tune.choice([1])
+
         if datasetsize != DatasetSize.ExperimentalManual and datasetsize != DatasetSize.ExperimentalLR and datasetsize != DatasetSize.TinyManual and datasetsize != DatasetSize.TinyLR:
             config["epsilon"] = tune.choice([0.1, 0.3, 0.5, 0.7])
             config["sigma"] = tune.choice([1, 3, 5, 10])
@@ -660,36 +671,7 @@ class Learn():
 
         if not os.path.exists(directory_experiment_ray):
             os.makedirs(directory_experiment_ray)
-
-        Learn.set_data(datareader=datareader)
-
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.LinearRegression)
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.ARIMA)
-        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,model_type = ModelType.SARIMA)
-
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.Tiny, model=ModelType.LSTM,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyManual, model=ModelType.LSTM,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyLR, model=ModelType.LSTM,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalManual,
-                                   model=ModelType.LSTM, datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalLR,
-                                   model=ModelType.LSTM, datareader=datareader, experiment_name=experiment_name)
-
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.Tiny, model=ModelType.STCONV,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyManual, model=ModelType.STCONV,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.TinyLR, model=ModelType.STCONV,
-                                   datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalManual,
-                                   model=ModelType.STCONV, datareader=datareader, experiment_name=experiment_name)
-        Learn.HyperParameterTuning(datasetsize=DatasetSize.ExperimentalLR,
-                                   model=ModelType.STCONV, datareader=datareader, experiment_name=experiment_name)
-
+        
         for datasize in DatasetSize:
-            Learn.HyperParameterTuning(datasetsize=datasize, model=ModelType.DCRNN,
-                                       datareader=datareader, experiment_name=experiment_name)
+            Learn.HyperParameterTuning(datasetsize=datasize, model=ModelType.DCRNN,datareader=datareader, experiment_name=experiment_name)
 #endregion
