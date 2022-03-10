@@ -175,11 +175,11 @@ class Learn():
                 if not os.path.exists(os.path.join(Folders.results_path, experiment_name)):
                     os.makedirs(os.path.join(
                         Folders.results_path, experiment_name))
-                file_save = os.path.join(Folders.results_path, experiment_name, "{0}_{1}_{2}.csv".format(
-                    self.model_type.name, str(self.nodes_size.name), str(tune.get_trial_id())))
+                file_save = os.path.join(Folders.results_path, experiment_name, "{0}_{1}_{2}_{3}.csv".format(
+                    self.model_type.name, str(self.nodes_size.name), str(self.distanceType.name), str(tune.get_trial_id())))
                 dfResults.to_csv(path_or_buf=file_save, index=False)
                 break
-            
+
             train_loss = train_loss / (index+1)
             self.scheduler.step(train_loss)
             print("Epoch {0} : Validation loss {1} ; Train loss {2};".format(
@@ -192,8 +192,8 @@ class Learn():
                 if not os.path.exists(os.path.join(Folders.results_path, experiment_name)):
                     os.makedirs(os.path.join(
                         Folders.results_path, experiment_name))
-                file_save = os.path.join(Folders.results_path, experiment_name, "{0}_{1}_{2}.csv".format(
-                    self.model_type.name, str(self.nodes_size.name), str(tune.get_trial_id())))
+                file_save = os.path.join(Folders.results_path, experiment_name, "{0}_{1}_{2}_{3}.csv".format(
+                    self.model_type.name, str(self.nodes_size.name), str(self.distanceType.name), str(tune.get_trial_id())))
                 dfResults.to_csv(path_or_buf=file_save, index=False)
 
             # Log to tune
@@ -522,9 +522,13 @@ class Learn():
             Returns None.
         """
         LinearRegressionDataset.save_dataset(datareader)
-        LinearRegressionDataset.set_graph_with_LR(
-            datareader, DatasetSize.Experimental)
-        LinearRegressionDataset.set_graph_with_LR(datareader, DatasetSize.Tiny)
+        for epsilon in Graph.epsilon_array:
+            for sigma in Graph.sigma_array:
+                for distanceType in DistanceType:
+                    LinearRegressionDataset.set_graph_with_LR(
+                        datareader, DatasetSize.Experimental, distanceType, epsilon, sigma)
+                    LinearRegressionDataset.set_graph_with_LR(
+                        datareader, DatasetSize.Tiny, distanceType, epsilon, sigma)
         STConvDataset.save_dataset(datareader)
         LSTMDataset.save_dataset(datareader)
 
@@ -564,7 +568,7 @@ class Learn():
     def trail_dirname_creator(trial):
         return f"{trial.config['model_type'].name}_{trial.config['nodes_size'].name}_{datetime.now().strftime('%d_%m_%Y-%H_%M_%S')}"
 
-    def HyperParameterTuning(datasetsize: DatasetSize, model: ModelType, distanceType : DistanceType, datareader: DataReader, experiment_name: str) -> None:
+    def HyperParameterTuning(datasetsize: DatasetSize, model: ModelType, distanceType: DistanceType, datareader: DataReader, experiment_name: str) -> None:
         r"""
             Function for hyper parameter tuning, it receives a datasetsize, model type, data reader and a loss function as a criterion, returns nothing.
             Creates parameters for the function for the hyper parameter tuning.
@@ -614,7 +618,7 @@ class Learn():
         directory_experiment_ray = os.path.join(
             Folders.results_ray_path, experiment_name)
 
-        Learn.__start.__name__ = f"{model.name}_{datasetsize.name}"
+        Learn.__start.__name__ = f"{model.name}_{datasetsize.name}_{distanceType.name}"
 
         result = tune.run(
             tune.with_parameters(Learn.__start, param=param),
@@ -652,40 +656,20 @@ class Learn():
 
         Learn.set_data(datareader=datareader)
 
-        Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,
-                          model_type=ModelType.LinearRegression)
-        Learn.startNonGNN(
-            datareader=datareader, experiment_name=experiment_name, model_type=ModelType.ARIMA)
-        Learn.startNonGNN(
-            datareader=datareader, experiment_name=experiment_name, model_type=ModelType.SARIMA)
+        # Learn.startNonGNN(datareader=datareader, experiment_name=experiment_name,
+        #                   model_type=ModelType.LinearRegression)
+        # Learn.startNonGNN(
+        #     datareader=datareader, experiment_name=experiment_name, model_type=ModelType.ARIMA)
+        # Learn.startNonGNN(
+        #     datareader=datareader, experiment_name=experiment_name, model_type=ModelType.SARIMA)
 
-        for datasize in DatasetSize:
-            if datasize != DatasetSize.All:
-                for distanceType in DistanceType:
-                    for model in ModelType:
-                        if model != ModelType.LinearRegression and model != ModelType.ARIMA and model != ModelType.SARIMA:
-                            Learn.HyperParameterTuning(
-                                datasetsize=datasize, model=model,distanceType=distanceType, datareader=datareader, experiment_name=experiment_name)
-
-    def TestRun():
-        Folders().CreateFolders()
-        datareader = DataReader()
-
-        experiment_name = "Experiment_{0}".format(
-            datetime.now().strftime("%d_%m_%Y-%H_%M_%S"))
-        directory_experiment_ray = os.path.join(
-            Folders.results_ray_path, experiment_name)
-
-        if not os.path.exists(directory_experiment_ray):
-            os.makedirs(directory_experiment_ray)
-
-        Learn.set_data(datareader=datareader)
-
-        for datasize in DatasetSize:
-            if datasize != DatasetSize.All:
-                for model in ModelType:
-                    if model != ModelType.LinearRegression and model != ModelType.ARIMA and model != ModelType.SARIMA:
-                        Learn.HyperParameterTuning(
-                            datasetsize=datasize, model=model,distanceType=DistanceType.OSRM, datareader=datareader, experiment_name=experiment_name)
+        distanceType = DistanceType.OSRM
+        datasize = DatasetSize.Medium
+        for model in ModelType:
+            if (model != ModelType.LinearRegression 
+            and model != ModelType.ARIMA 
+            and model != ModelType.SARIMA):
+                Learn.HyperParameterTuning(
+                    datasetsize=datasize, model=model, distanceType=distanceType, datareader=datareader, experiment_name=experiment_name)
 
 #endregion

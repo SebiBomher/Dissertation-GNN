@@ -252,7 +252,7 @@ class LinearRegressionDataset():
         best = sorted_results[:3]
         return [result[0] for result in best]
 
-    def set_graph_with_LR(datareader: DataReader, size: DatasetSize):
+    def set_graph_with_LR(datareader: DataReader, size: DatasetSize, distanceType: DistanceType, epsilon: float, sigma: int):
         name_folder_weight = os.path.join(
             Folders.proccessed_data_path, 'Data_EdgeWeight')
         name_folder_index = os.path.join(
@@ -265,9 +265,11 @@ class LinearRegressionDataset():
             os.makedirs(name_folder_index)
 
         name_weight = os.path.join(
-            name_folder_weight, 'weight_{0}LR.npy'.format(str(size.name)))
+            name_folder_weight, 'weight_{0}_{1}_{2}_{3}LR.npy'.format(
+            distanceType.name, str(epsilon), str(sigma), str(size.name)))
         name_index = os.path.join(
-            name_folder_index, 'index_{0}LR.npy'.format(str(size.name)))
+            name_folder_index, 'index_{0}_{1}_{2}_{3}LR.npy'.format(
+            distanceType.name, str(epsilon), str(sigma), str(size.name)))
 
         if os.path.isfile(name_weight) and os.path.isfile(name_index):
             return
@@ -281,8 +283,9 @@ class LinearRegressionDataset():
             for node_relevant in nodes_relevant:
                 edge_index.append(
                     [nodes_ids.index(node_relevant), nodes_ids.index(node)])
+                edge_weight.append(Graph.get_adjency_matrix_weight(
+                        nodes_ids.index(node_relevant), nodes_ids.index(node), epsilon, sigma, distanceType))
         edge_index = [list(x) for x in set(tuple(x) for x in edge_index)]
-        edge_weight = np.ones(len(edge_index))
         edge_index = np.transpose(edge_index)
 
         np.save(name_index, edge_index)
