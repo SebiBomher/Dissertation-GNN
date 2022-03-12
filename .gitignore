@@ -124,6 +124,6 @@ tests.py
 *.pickle
 Dissertation_Docs/Bibliography/PeMS_Intro_User_Guide_v6.pdf
 Results-RAY/*
-Plots/*
+Plots/Old
 Dissertation_Docs/*.png
 Dissertation_Docs/*.jpg
