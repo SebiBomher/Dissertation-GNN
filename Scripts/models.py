@@ -1,17 +1,23 @@
-
 import torch
 from torch_geometric_temporal.nn.attention.stgcn import STConv
-from torch_geometric_temporal.nn.recurrent import GCLSTM,DCRNN
+from torch_geometric_temporal.nn.recurrent import GCLSTM, DCRNN
 from torch_geometric.nn import GCNConv
-from torch.nn import ReLU,Linear,Module,BatchNorm1d,Dropout
+from torch.nn import ReLU, Linear, Module, BatchNorm1d, Dropout
 from sklearn.linear_model import LinearRegression
-import torch.nn as nn
+
 
 class STConvModel(Module):
-    def __init__(self, node_features,num_nodes,hidden_channels,kernel_size,K):
+
+    def __init__(self, node_features, num_nodes, hidden_channels, kernel_size,
+                 K):
         super(STConvModel, self).__init__()
 
-        self.STCONV = STConv(num_nodes = num_nodes,in_channels=node_features,hidden_channels=hidden_channels,out_channels=node_features,kernel_size=kernel_size,K=K)
+        self.STCONV = STConv(num_nodes=num_nodes,
+                             in_channels=node_features,
+                             hidden_channels=hidden_channels,
+                             out_channels=node_features,
+                             kernel_size=kernel_size,
+                             K=K)
         self.linear = Linear(node_features, 1)
         self.ReLU = ReLU()
 
@@ -25,12 +31,17 @@ class STConvModel(Module):
         x = self.linear(x)
         return x
 
+
 class DCRNNModel(Module):
-    def __init__(self,node_features,hidden_channels,K):
+
+    def __init__(self, node_features, hidden_channels, K):
         super(DCRNNModel, self).__init__()
 
-        self.DCRNN = DCRNN(in_channels= node_features,out_channels=hidden_channels,K=K)
-        self.Conv1 = GCNConv(in_channels=hidden_channels,out_channels=hidden_channels)
+        self.DCRNN = DCRNN(in_channels=node_features,
+                           out_channels=hidden_channels,
+                           K=K)
+        self.Conv1 = GCNConv(in_channels=hidden_channels,
+                             out_channels=hidden_channels)
         self.BatchNorm1 = BatchNorm1d(num_features=hidden_channels)
         self.ReLU = ReLU()
         self.Dropout = Dropout()
@@ -45,12 +56,17 @@ class DCRNNModel(Module):
         x = self.linear(x)
         return x
 
+
 class LSTMModel(Module):
-    def __init__(self,node_features,hidden_channels,K):
+
+    def __init__(self, node_features, hidden_channels, K):
         super(LSTMModel, self).__init__()
 
-        self.GCLSTM1 = GCLSTM(in_channels= node_features,out_channels= hidden_channels,K=K)
-        self.Conv1 = GCNConv(in_channels=hidden_channels,out_channels=hidden_channels)
+        self.GCLSTM1 = GCLSTM(in_channels=node_features,
+                              out_channels=hidden_channels,
+                              K=K)
+        self.Conv1 = GCNConv(in_channels=hidden_channels,
+                             out_channels=hidden_channels)
         self.BatchNorm1 = BatchNorm1d(num_features=hidden_channels)
         self.ReLU = ReLU()
         self.Dropout = Dropout()
@@ -65,6 +81,8 @@ class LSTMModel(Module):
         x = self.linear(x)
         return x
 
+
 class LinearRegression():
+
     def __init__(self):
         self.model = LinearRegression()

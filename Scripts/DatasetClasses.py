@@ -16,8 +16,10 @@ from sklearn.linear_model import LinearRegression
 
 class DatasetClass(object):
     r"""
-        Helping class so there is no need to implement the same variables in the constructors and the graph set and get
+        Helping class so there is no need to implement the same variables 
+        in the constructors and the graph set and get
     """
+
     #region Constructor & Properties
 
     def __init__(self,
@@ -49,13 +51,14 @@ class DatasetClass(object):
 
     def __set_graph(self):
         r"""
-            Function to set the graph which contains the edge indices and edge weights
+            Function to set the graph which contains the edge indices and 
+            edge weights
             Instance Function.
             No Arguments.
             Returns None.
         """
-        self.graph = Graph(self.epsilon, self.sigma,
-                           self.size, self.distanceType, self.data_reader)
+        self.graph = Graph(self.epsilon, self.sigma, self.size,
+                           self.distanceType, self.data_reader)
 
     def get_edge_index(self):
         r"""
@@ -90,10 +93,10 @@ class LinearRegressionDataset():
         Instance functions:
         Class Functions:
     """
+
     #region Constructor & Properties
 
-    def __init__(self,
-                 datareader: DataReader):
+    def __init__(self, datareader: DataReader):
         r"""
             Constructor, Receives a datareader
         """
@@ -113,20 +116,23 @@ class LinearRegressionDataset():
             Args:
                 time_index : int, index in the collection
             Instance Function
-            Returns a tuple of data for train and test, labels for train and test and the node id
+            Returns a tuple of data for train and test, 
+            labels for train and test and the node id
         """
-        name_x = os.path.join(self.proccessed_data_path_model,
-                              "Data", 'X_{0}*.npy'.format(str(time_index)))
-        name_y = os.path.join(self.proccessed_data_path_model,
-                              "Data", 'Y_{0}*.npy'.format(str(time_index)))
+        name_x = os.path.join(self.proccessed_data_path_model, "Data",
+                              'X_{0}*.npy'.format(str(time_index)))
+        name_y = os.path.join(self.proccessed_data_path_model, "Data",
+                              'Y_{0}*.npy'.format(str(time_index)))
 
         for filename in glob.glob(name_x):
             node_id = filename[-10:-4]
             X = np.load(filename)
         for filename in glob.glob(name_y):
             Y = np.load(filename)
-        X_train, X_test, Y_train, Y_test = train_test_split(
-            X, Y, test_size=0.2, shuffle=False)
+        X_train, X_test, Y_train, Y_test = train_test_split(X,
+                                                            Y,
+                                                            test_size=0.2,
+                                                            shuffle=False)
         return X_train, X_test, Y_train, Y_test, node_id
 
     def __next__(self):
@@ -154,19 +160,22 @@ class LinearRegressionDataset():
 
     def get_for_node(self, node: int):
         r"""
-            Function which returns test data and test labels for a specific node
+            Function which returns test data and test labels for a specific 
+            node
         """
         assert node % math.pow(10, 6) >= 1
-        name_x = os.path.join(self.proccessed_data_path_model,
-                              "Data", 'X_*_{0}.npy'.format(str(node)))
-        name_y = os.path.join(self.proccessed_data_path_model,
-                              "Data", 'Y_*_{0}.npy'.format(str(node)))
+        name_x = os.path.join(self.proccessed_data_path_model, "Data",
+                              'X_*_{0}.npy'.format(str(node)))
+        name_y = os.path.join(self.proccessed_data_path_model, "Data",
+                              'Y_*_{0}.npy'.format(str(node)))
         for filename in glob.glob(name_x):
             X = np.load(filename)
         for filename in glob.glob(name_y):
             Y = np.load(filename)
-        _, X_test, _, Y_test = train_test_split(
-            X, Y, test_size=0.2, shuffle=False)
+        _, X_test, _, Y_test = train_test_split(X,
+                                                Y,
+                                                test_size=0.2,
+                                                shuffle=False)
         return X_test, Y_test
 
     #endregion
@@ -175,12 +184,13 @@ class LinearRegressionDataset():
 
     def __arrange_data(data, num_nodes):
         r"""
-            Class Function to arrange from raw data to ordered data such that in each item there is information for a row
+            Class Function to arrange from raw data to ordered data such 
+            that in each item there is information for a row
         """
         New_Data = []
         for i in range(num_nodes):
             Data = []
-            for k in range((int)(len(data)/num_nodes)):
+            for k in range((int)(len(data) / num_nodes)):
                 Data.append(data[i + (k * num_nodes)])
             New_Data.append(Data)
         return New_Data
@@ -191,15 +201,15 @@ class LinearRegressionDataset():
         """
         if not LinearRegressionDataset.need_load():
             return
-        proccessed_data_path_model = os.path.join(
-            Folders.proccessed_data_path, "LinearRegression")
+        proccessed_data_path_model = os.path.join(Folders.proccessed_data_path,
+                                                  "LinearRegression")
 
         X, Y = datareader.get_clean_data_by_nodes(DatasetSize.All)
 
-        X = LinearRegressionDataset.__arrange_data(
-            X, DatasetSizeNumber.All.value)
-        Y = LinearRegressionDataset.__arrange_data(
-            Y, DatasetSizeNumber.All.value)
+        X = LinearRegressionDataset.__arrange_data(X,
+                                                   DatasetSizeNumber.All.value)
+        Y = LinearRegressionDataset.__arrange_data(Y,
+                                                   DatasetSizeNumber.All.value)
 
         nodes_ids = Graph.get_nodes_ids_by_size(DatasetSize.All)
 
@@ -227,15 +237,20 @@ class LinearRegressionDataset():
         r"""
             Function to determine wheter to start saving data
         """
-        return not os.path.exists(os.path.join(os.path.join(Folders.proccessed_data_path, "LinearRegression"), 'Data'))
+        return not os.path.exists(
+            os.path.join(
+                os.path.join(Folders.proccessed_data_path, "LinearRegression"),
+                'Data'))
 
-    def get_previous_node_for_node_with_LR(datareader: DataReader, node: int, datasetsize: DatasetSize):
+    def get_previous_node_for_node_with_LR(datareader: DataReader, node: int,
+                                           datasetsize: DatasetSize):
 
         dataset = LinearRegressionDataset(datareader)
         nodes_ids = Graph.get_nodes_ids_by_size(datasetsize)
         data_list = []
         nodes_used = []
-        for _, (X_train, X_test, Y_train, Y_test, node_id) in enumerate(dataset):
+        for _, (X_train, X_test, Y_train, Y_test,
+                node_id) in enumerate(dataset):
             node_id = (int)(node_id)
             Y_train = [item for sublist in Y_train for item in sublist]
             if node_id in nodes_ids and node != node_id:
@@ -244,19 +259,21 @@ class LinearRegressionDataset():
             if node == node_id:
                 labels_node = Y_train
         data_list = np.transpose(data_list)
-        regression = LinearRegression(
-            positive=True).fit(data_list, labels_node)
+        regression = LinearRegression(positive=True).fit(
+            data_list, labels_node)
         coeffiecients = regression.coef_.tolist()
         results = zip(nodes_used, coeffiecients)
         sorted_results = sorted(results, key=lambda tup: tup[1], reverse=True)
         best = sorted_results[:3]
         return [result[0] for result in best]
 
-    def set_graph_with_LR(datareader: DataReader, size: DatasetSize, distanceType: DistanceType, epsilon: float, sigma: int):
-        name_folder_weight = os.path.join(
-            Folders.proccessed_data_path, 'Data_EdgeWeight')
-        name_folder_index = os.path.join(
-            Folders.proccessed_data_path, 'Data_EdgeIndex')
+    def set_graph_with_LR(datareader: DataReader, size: DatasetSize,
+                          distanceType: DistanceType, epsilon: float,
+                          sigma: int):
+        name_folder_weight = os.path.join(Folders.proccessed_data_path,
+                                          'Data_EdgeWeight')
+        name_folder_index = os.path.join(Folders.proccessed_data_path,
+                                         'Data_EdgeIndex')
 
         if not os.path.exists(name_folder_weight):
             os.makedirs(name_folder_weight)
@@ -265,11 +282,15 @@ class LinearRegressionDataset():
             os.makedirs(name_folder_index)
 
         name_weight = os.path.join(
-            name_folder_weight, 'weight_{0}_{1}_{2}_{3}LR.npy'.format(
-            distanceType.name, str(epsilon), str(sigma), str(size.name)))
+            name_folder_weight,
+            'weight_{0}_{1}_{2}_{3}LR.npy'.format(distanceType.name,
+                                                  str(epsilon), str(sigma),
+                                                  str(size.name)))
         name_index = os.path.join(
-            name_folder_index, 'index_{0}_{1}_{2}_{3}LR.npy'.format(
-            distanceType.name, str(epsilon), str(sigma), str(size.name)))
+            name_folder_index,
+            'index_{0}_{1}_{2}_{3}LR.npy'.format(distanceType.name,
+                                                 str(epsilon), str(sigma),
+                                                 str(size.name)))
 
         if os.path.isfile(name_weight) and os.path.isfile(name_index):
             return
@@ -282,9 +303,12 @@ class LinearRegressionDataset():
                 datareader, node, size)
             for node_relevant in nodes_relevant:
                 edge_index.append(
-                    [nodes_ids.index(node_relevant), nodes_ids.index(node)])
-                edge_weight.append(Graph.get_adjency_matrix_weight(
-                        nodes_ids.index(node_relevant), nodes_ids.index(node), epsilon, sigma, distanceType))
+                    [nodes_ids.index(node_relevant),
+                     nodes_ids.index(node)])
+                edge_weight.append(
+                    Graph.get_adjency_matrix_weight(
+                        nodes_ids.index(node_relevant), nodes_ids.index(node),
+                        epsilon, sigma, distanceType))
         edge_index = [list(x) for x in set(tuple(x) for x in edge_index)]
         edge_index = np.transpose(edge_index)
 
@@ -313,8 +337,8 @@ class LSTMDataset(DatasetClass):
         r"""
             Constructor. It also uses base class intialization.
         """
-        super().__init__(sigma, epsilon, size, distanceType,
-                         datareader, device, time_start, time_stop)
+        super().__init__(sigma, epsilon, size, distanceType, datareader,
+                         device, time_start, time_stop)
         self.proccessed_data_path_model = os.path.join(
             self.proccessed_data_path, "LSTM")
         self.transform = transforms.Compose([transforms.ToTensor()])
@@ -327,68 +351,71 @@ class LSTMDataset(DatasetClass):
 
     def __check_temporal_consistency(self):
         r"""
-            Function to check if the data and labels have the same number and there are not discrepancies.
+            Function to check if the data and labels have the 
+            same number and there are not discrepancies.
         """
-        assert len(glob.glob1(os.path.join(self.proccessed_data_path_model, "Data_{0}".format(str(self.size.name))), "X_*.npy")) == len(glob.glob1(
-            os.path.join(self.proccessed_data_path_model, "Data_{0}".format(str(self.size.name))), "Y_*.npy")), "Temporal dimension inconsistency."
+        assert len(
+            glob.glob1(
+                os.path.join(self.proccessed_data_path_model,
+                             "Data_{0}".format(str(self.size.name))),
+                "X_*.npy")) == len(
+                    glob.glob1(
+                        os.path.join(self.proccessed_data_path_model,
+                                     "Data_{0}".format(str(self.size.name))),
+                        "Y_*.npy")), "Temporal dimension inconsistency."
 
     def __set_snapshot_count(self):
         r"""
             Sets the dataset length
         """
-        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+        if (self.size == DatasetSize.TinyManual
+                or self.size == DatasetSize.TinyLR):
             Size = DatasetSize.Tiny
-        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+        elif (self.size == DatasetSize.ExperimentalManual
+              or self.size == DatasetSize.ExperimentalLR):
             Size = DatasetSize.Experimental
         else:
             Size = self.size
 
-        self.snapshot_count = len(glob.glob1(os.path.join(
-            self.proccessed_data_path_model, "Data_{0}".format(str(Size.name))), "X_*.npy"))
+        self.snapshot_count = len(
+            glob.glob1(
+                os.path.join(self.proccessed_data_path_model,
+                             "Data_{0}".format(str(Size.name))), "X_*.npy"))
 
-    def __split_dataset(self, train_ratio: float = 0.6, val_ratio: float = 0.2, test_ratio: float = 0.2):
+    def __split_dataset(self,
+                        train_ratio: float = 0.6,
+                        val_ratio: float = 0.2,
+                        test_ratio: float = 0.2):
         r"""
-            Dataset splitter. Splits dataset based on ratios into train validation and test
+            Dataset splitter. Splits dataset based on ratios into train 
+            validation and test
         """
         assert train_ratio + test_ratio + val_ratio == 1
-        time_train = int(train_ratio*self.snapshot_count)
-        time_test = time_train + int(test_ratio*self.snapshot_count)
+        time_train = int(train_ratio * self.snapshot_count)
+        time_test = time_train + int(test_ratio * self.snapshot_count)
 
-        train_iterator = LSTMDataset(self.sigma,
-                                     self.epsilon,
-                                     self.size,
-                                     self.distanceType,
-                                     self.data_reader,
-                                     self.device,
-                                     0,
-                                     time_train + 1)
+        train_iterator = LSTMDataset(self.sigma, self.epsilon, self.size,
+                                     self.distanceType, self.data_reader,
+                                     self.device, 0, time_train + 1)
 
-        val_iterator = LSTMDataset(self.sigma,
-                                   self.epsilon,
-                                   self.size,
-                                   self.distanceType,
-                                   self.data_reader,
-                                   self.device,
-                                   time_train + 1,
-                                   time_test)
+        val_iterator = LSTMDataset(self.sigma, self.epsilon, self.size,
+                                   self.distanceType, self.data_reader,
+                                   self.device, time_train + 1, time_test)
 
-        test_iterator = LSTMDataset(self.sigma,
-                                    self.epsilon,
-                                    self.size,
-                                    self.distanceType,
-                                    self.data_reader,
-                                    self.device,
-                                    time_test + 1,
+        test_iterator = LSTMDataset(self.sigma, self.epsilon, self.size,
+                                    self.distanceType, self.data_reader,
+                                    self.device, time_test + 1,
                                     self.snapshot_count)
 
         return train_iterator, val_iterator, test_iterator
 
     def __arrange_data(data, num_nodes):
         r"""
-            Function to arrange data. At a point it represents the temporal state of the graph
+            Function to arrange data. At a point it represents the temporal 
+            state of the graph
         """
         New_Data = []
-        for i in range((int)(len(data)/num_nodes)):
+        for i in range((int)(len(data) / num_nodes)):
             Data = []
             for k in range(num_nodes):
                 Data.append(data[(i * num_nodes) + k])
@@ -404,17 +431,15 @@ class LSTMDataset(DatasetClass):
 
         X, Y = datareader.get_clean_data_by_nodes(size)
 
-        X = LSTMDataset.__arrange_data(
-            X, Graph.get_number_nodes_by_size(size))
-        Y = LSTMDataset.__arrange_data(
-            Y, Graph.get_number_nodes_by_size(size))
-        proccessed_data_path_model = os.path.join(
-            Folders.proccessed_data_path, "LSTM")
+        X = LSTMDataset.__arrange_data(X, Graph.get_number_nodes_by_size(size))
+        Y = LSTMDataset.__arrange_data(Y, Graph.get_number_nodes_by_size(size))
+        proccessed_data_path_model = os.path.join(Folders.proccessed_data_path,
+                                                  "LSTM")
         if not os.path.exists(proccessed_data_path_model):
             os.makedirs(proccessed_data_path_model)
 
-        name_folder = os.path.join(
-            proccessed_data_path_model, 'Data_{0}'.format(str(size.name)))
+        name_folder = os.path.join(proccessed_data_path_model,
+                                   'Data_{0}'.format(str(size.name)))
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
 
@@ -430,14 +455,17 @@ class LSTMDataset(DatasetClass):
         r"""
             Function to get data at a time index
         """
-        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+        if (self.size == DatasetSize.TinyManual
+                or self.size == DatasetSize.TinyLR):
             Size = DatasetSize.Tiny
-        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+        elif (self.size == DatasetSize.ExperimentalManual
+              or self.size == DatasetSize.ExperimentalLR):
             Size = DatasetSize.Experimental
         else:
             Size = self.size
-        name_x = os.path.join(self.proccessed_data_path_model, "Data_{0}".format(
-            str(Size.name)), 'X_{0}.npy'.format(str(time_index)))
+        name_x = os.path.join(self.proccessed_data_path_model,
+                              "Data_{0}".format(str(Size.name)),
+                              'X_{0}.npy'.format(str(time_index)))
         X = np.load(name_x)
         if X is None:
             return X
@@ -448,14 +476,17 @@ class LSTMDataset(DatasetClass):
         r"""
             Function to get labels at a time index
         """
-        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+        if (self.size == DatasetSize.TinyManual
+                or self.size == DatasetSize.TinyLR):
             Size = DatasetSize.Tiny
-        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+        elif (self.size == DatasetSize.ExperimentalManual
+              or self.size == DatasetSize.ExperimentalLR):
             Size = DatasetSize.Experimental
         else:
             Size = self.size
-        name_y = os.path.join(self.proccessed_data_path_model, "Data_{0}".format(
-            str(Size.name)), 'Y_{0}.npy'.format(str(time_index)))
+        name_y = os.path.join(self.proccessed_data_path_model,
+                              "Data_{0}".format(str(Size.name)),
+                              'Y_{0}.npy'.format(str(time_index)))
         Y = np.load(name_y)
         if Y is None:
             return Y
@@ -506,28 +537,40 @@ class LSTMDataset(DatasetClass):
         r"""
             Function to determine wheter to start saving data
         """
-        return len(LSTMDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "LSTM"))) > 0
+        return len(
+            LSTMDataset.__get_tuple_to_add(
+                os.path.join(proccessed_data_path, "LSTM"))) > 0
 
-    def get_dataset_LSTM(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, distanceType: DistanceType, datareader: DataReader, device: str):
+    def get_dataset_LSTM(train_ratio: float, test_ratio: float,
+                         val_ratio: float, epsilon: float, sigma: int,
+                         nodes_size: DatasetSize, distanceType: DistanceType,
+                         datareader: DataReader, device: str):
         r"""
-            Function used in Learn to get train validation and test datasets for training
+            Function used in Learn to get train validation and test 
+            datasets for training
         """
-        DataTraffic = LSTMDataset(
-            sigma, epsilon, nodes_size, distanceType, datareader, device)
-        train, val, test = DataTraffic.__split_dataset(
-            train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
+        DataTraffic = LSTMDataset(sigma, epsilon, nodes_size, distanceType,
+                                  datareader, device)
+        train, val, test = DataTraffic.__split_dataset(train_ratio=train_ratio,
+                                                       val_ratio=val_ratio,
+                                                       test_ratio=test_ratio)
         return train, val, test
 
     def __get_tuple_to_add(proccessed_data_path):
         r"""
-            Function to retrieve what data is missing in order for it to be saved
+            Function to retrieve what data is missing in order 
+            for it to be saved
         """
         to_create = []
         for size in DatasetSize:
             if size != DatasetSize.All:
-                if size != DatasetSize.TinyManual and size != DatasetSize.ExperimentalManual and size != DatasetSize.TinyLR and size != DatasetSize.ExperimentalLR:
+                if (size != DatasetSize.TinyManual
+                        and size != DatasetSize.ExperimentalManual
+                        and size != DatasetSize.TinyLR
+                        and size != DatasetSize.ExperimentalLR):
                     name_folder = os.path.join(
-                        proccessed_data_path, 'Data_{0}'.format(str(size.name)))
+                        proccessed_data_path,
+                        'Data_{0}'.format(str(size.name)))
                     if not os.path.exists(name_folder):
                         to_create.append([size])
         return to_create
@@ -536,10 +579,9 @@ class LSTMDataset(DatasetClass):
         r"""
             Function to save the dataset
         """
-        proccessed_data_path_model = os.path.join(
-            Folders.proccessed_data_path, "LSTM")
-        to_create = LSTMDataset.__get_tuple_to_add(
-            proccessed_data_path_model)
+        proccessed_data_path_model = os.path.join(Folders.proccessed_data_path,
+                                                  "LSTM")
+        to_create = LSTMDataset.__get_tuple_to_add(proccessed_data_path_model)
         for tuple in to_create:
             size = tuple[0]
             LSTMDataset.__save_proccess_data(data_reader, size)
@@ -559,66 +601,73 @@ class STConvDataset(DatasetClass):
                  time_start: int = 0,
                  time_stop: float = -1):
 
-        super().__init__(sigma, epsilon, size, distanceType,
-                         datareader, device, time_start, time_stop)
+        super().__init__(sigma, epsilon, size, distanceType, datareader,
+                         device, time_start, time_stop)
         self.proccessed_data_path_STCONV = os.path.join(
             self.proccessed_data_path, "STCONV")
         self.__check_temporal_consistency()
         self.__set_snapshot_count()
 
     def __check_temporal_consistency(self):
-        assert len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(self.size.name))), "X_*.npy")) == len(glob.glob1(
-            os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(self.size.name))), "Y_*.npy")), "Temporal dimension inconsistency."
+        assert len(
+            glob.glob1(
+                os.path.join(self.proccessed_data_path_STCONV,
+                             "Data_{0}".format(str(self.size.name))),
+                "X_*.npy")) == len(
+                    glob.glob1(
+                        os.path.join(self.proccessed_data_path_STCONV,
+                                     "Data_{0}".format(str(self.size.name))),
+                        "Y_*.npy")), "Temporal dimension inconsistency."
 
     def need_load(proccessed_data_path):
-        return len(STConvDataset.__get_tuple_to_add(os.path.join(proccessed_data_path, "STCONV"))) > 0
+        return len(
+            STConvDataset.__get_tuple_to_add(
+                os.path.join(proccessed_data_path, "STCONV"))) > 0
 
-    def get_dataset_STCONV(train_ratio: float, test_ratio: float, val_ratio: float, epsilon: float, sigma: int, nodes_size: DatasetSize, distanceType: DistanceType, datareader: DataReader, device: str):
-        DataTraffic = STConvDataset(
-            sigma, epsilon, nodes_size, distanceType, datareader, device)
-        train, val, test = DataTraffic.__split_dataset(
-            train_ratio=train_ratio, val_ratio=val_ratio, test_ratio=test_ratio)
+    def get_dataset_STCONV(train_ratio: float, test_ratio: float,
+                           val_ratio: float, epsilon: float, sigma: int,
+                           nodes_size: DatasetSize, distanceType: DistanceType,
+                           datareader: DataReader, device: str):
+        DataTraffic = STConvDataset(sigma, epsilon, nodes_size, distanceType,
+                                    datareader, device)
+        train, val, test = DataTraffic.__split_dataset(train_ratio=train_ratio,
+                                                       val_ratio=val_ratio,
+                                                       test_ratio=test_ratio)
         return train, val, test
 
     def __set_snapshot_count(self):
-        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+        if (self.size == DatasetSize.TinyManual
+                or self.size == DatasetSize.TinyLR):
             Size = DatasetSize.Tiny
-        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+        elif (self.size == DatasetSize.ExperimentalManual
+              or self.size == DatasetSize.ExperimentalLR):
             Size = DatasetSize.Experimental
         else:
             Size = self.size
-        self.snapshot_count = len(glob.glob1(os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(str(Size.name))), "X_*.npy"))
+        self.snapshot_count = len(
+            glob.glob1(
+                os.path.join(self.proccessed_data_path_STCONV,
+                             "Data_{0}".format(str(Size.name))), "X_*.npy"))
 
-    def __split_dataset(self, train_ratio: float = 0.6, val_ratio: float = 0.2, test_ratio: float = 0.2):
+    def __split_dataset(self,
+                        train_ratio: float = 0.6,
+                        val_ratio: float = 0.2,
+                        test_ratio: float = 0.2):
         assert train_ratio + test_ratio + val_ratio == 1
-        time_train = int(train_ratio*self.snapshot_count)
-        time_test = time_train + int(test_ratio*self.snapshot_count)
+        time_train = int(train_ratio * self.snapshot_count)
+        time_test = time_train + int(test_ratio * self.snapshot_count)
 
-        train_iterator = STConvDataset(self.sigma,
-                                       self.epsilon,
-                                       self.size,
-                                       self.distanceType,
-                                       self.data_reader,
-                                       self.device,
-                                       0,
-                                       time_train)
+        train_iterator = STConvDataset(self.sigma, self.epsilon, self.size,
+                                       self.distanceType, self.data_reader,
+                                       self.device, 0, time_train)
 
-        test_iterator = STConvDataset(self.sigma,
-                                      self.epsilon,
-                                      self.size,
-                                      self.distanceType,
-                                      self.data_reader,
-                                      self.device,
-                                      time_train + 1,
-                                      time_test)
+        test_iterator = STConvDataset(self.sigma, self.epsilon, self.size,
+                                      self.distanceType, self.data_reader,
+                                      self.device, time_train + 1, time_test)
 
-        val_iterator = STConvDataset(self.sigma,
-                                     self.epsilon,
-                                     self.size,
-                                     self.distanceType,
-                                     self.data_reader,
-                                     self.device,
-                                     time_test + 1,
+        val_iterator = STConvDataset(self.sigma, self.epsilon, self.size,
+                                     self.distanceType, self.data_reader,
+                                     self.device, time_test + 1,
                                      self.snapshot_count)
 
         return train_iterator, test_iterator, val_iterator
@@ -631,31 +680,31 @@ class STConvDataset(DatasetClass):
             str(size.name)))
 
         interval_per_day = datareader.interval_per_day
-        Skip = (int)(time_steps/2) * 2
+        Skip = (int)(time_steps / 2) * 2
         interval_per_day -= Skip
         X, Y = datareader.get_clean_data_by_nodes(size)
 
         nodes_size = Graph.get_number_nodes_by_size(size)
 
-        X = STConvDataset.__arrange_data_for_time_step(
-            X, time_steps, nodes_size)
-        Y = STConvDataset.__arrange_data_for_time_step(
-            Y, time_steps, nodes_size)
+        X = STConvDataset.__arrange_data_for_time_step(X, time_steps,
+                                                       nodes_size)
+        Y = STConvDataset.__arrange_data_for_time_step(Y, time_steps,
+                                                       nodes_size)
 
         new_size = (int)(interval_per_day * datareader.nb_days / batch_size)
         data_size = len(X)
         if new_size * batch_size != data_size:
-            difference = data_size-((new_size - 1) * batch_size)
-            X = X[:data_size-difference]
-            Y = Y[:data_size-difference]
+            difference = data_size - ((new_size - 1) * batch_size)
+            X = X[:data_size - difference]
+            Y = Y[:data_size - difference]
             new_size -= 1
-        X = np.array(X).reshape(new_size, batch_size,
-                                time_steps, nodes_size, 2)
-        Y = np.array(Y).reshape(new_size, batch_size,
-                                time_steps, nodes_size, 1)
+        X = np.array(X).reshape(new_size, batch_size, time_steps, nodes_size,
+                                2)
+        Y = np.array(Y).reshape(new_size, batch_size, time_steps, nodes_size,
+                                1)
 
-        name_folder = os.path.join(
-            Folders.proccessed_data_path, 'STCONV', 'Data_{0}'.format(str(size.name)))
+        name_folder = os.path.join(Folders.proccessed_data_path, 'STCONV',
+                                   'Data_{0}'.format(str(size.name)))
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
 
@@ -668,9 +717,10 @@ class STConvDataset(DatasetClass):
             np.save(name_y, data)
 
     def __arrange_data_for_time_step(data, time_steps, num_nodes):
-        Skip = (int)(time_steps/2)
+        Skip = (int)(time_steps / 2)
         New_Data = []
-        for i in range(Skip, (int)((len(data) - (num_nodes * Skip))/(num_nodes))):
+        for i in range(Skip,
+                       (int)((len(data) - (num_nodes * Skip)) / (num_nodes))):
             Graph = []
             for j in range(-Skip, Skip + 1):
                 Data = []
@@ -684,9 +734,13 @@ class STConvDataset(DatasetClass):
         to_create = []
         for size in DatasetSize:
             if size != DatasetSize.All:
-                if size != DatasetSize.TinyManual and size != DatasetSize.ExperimentalManual and size != DatasetSize.TinyLR and size != DatasetSize.ExperimentalLR:
-                    name_folder = os.path.join(proccessed_data_path, 'Data_{0}'.format(
-                        str(size.name)))
+                if (size != DatasetSize.TinyManual
+                        and size != DatasetSize.ExperimentalManual
+                        and size != DatasetSize.TinyLR
+                        and size != DatasetSize.ExperimentalLR):
+                    name_folder = os.path.join(
+                        proccessed_data_path,
+                        'Data_{0}'.format(str(size.name)))
                     if not os.path.exists(name_folder):
                         to_create.append([size])
         return to_create
@@ -701,14 +755,17 @@ class STConvDataset(DatasetClass):
             STConvDataset.__save_proccess_data(data_reader, size)
 
     def __get_features(self, time_index: int):
-        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+        if (self.size == DatasetSize.TinyManual
+                or self.size == DatasetSize.TinyLR):
             Size = DatasetSize.Tiny
-        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+        elif (self.size == DatasetSize.ExperimentalManual
+              or self.size == DatasetSize.ExperimentalLR):
             Size = DatasetSize.Experimental
         else:
             Size = self.size
-        name_x = os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(
-            str(Size.name)), 'X_{0}.npy'.format(str(time_index)))
+        name_x = os.path.join(self.proccessed_data_path_STCONV,
+                              "Data_{0}".format(str(Size.name)),
+                              'X_{0}.npy'.format(str(time_index)))
         X = np.load(name_x)
         if X is None:
             return X
@@ -716,14 +773,17 @@ class STConvDataset(DatasetClass):
             return torch.FloatTensor(X).to(self.device)
 
     def __get_target(self, time_index: int):
-        if self.size == DatasetSize.TinyManual or self.size == DatasetSize.TinyLR:
+        if (self.size == DatasetSize.TinyManual
+                or self.size == DatasetSize.TinyLR):
             Size = DatasetSize.Tiny
-        elif self.size == DatasetSize.ExperimentalManual or self.size == DatasetSize.ExperimentalLR:
+        elif (self.size == DatasetSize.ExperimentalManual
+              or self.size == DatasetSize.ExperimentalLR):
             Size = DatasetSize.Experimental
         else:
             Size = self.size
-        name_y = os.path.join(self.proccessed_data_path_STCONV, "Data_{0}".format(
-            str(Size.name)), 'Y_{0}.npy'.format(str(time_index)))
+        name_y = os.path.join(self.proccessed_data_path_STCONV,
+                              "Data_{0}".format(str(Size.name)),
+                              'Y_{0}.npy'.format(str(time_index)))
         Y = np.load(name_y)
         if Y is None:
             return Y
