@@ -390,9 +390,39 @@ class DataViz():
 
         fig.write_image(path_save)
 
-    def Run():
+    def GeneralViz_Run(self, datareader : DataReader):
+        
+        # General Datavizualization
+        self.BoxPlotSpeed("boxplot.png")
+        self.MapPlotSensors("mapplotAll.png", DatasetSize.All)
+        self.MapPlotSensors("mapplotExperimental.png",
+                               DatasetSize.Experimental)
+        self.MapPlotSensors("mapplotTiny.png", DatasetSize.Tiny)
+        self.MapPlotSensors("mapplotSmall.png", DatasetSize.Small)
+        self.MapPlotSensors("mapplotMedium.png", DatasetSize.Medium)
+        self.PieChartRoadwayType("piechart.png")
+        self.MapHeatmapSpeed("mapheat9.png", 9)
+        self.MapHeatmapSpeed("mapheat15.png", 15)
+        self.MapHeatmapSpeed("mapheat18.png", 18)
+        self.MapHeatmapSpeed("mapheat22.png", 22)
+        self.GraphHeatmap("graph.png", datareader)
+
+    def Experiment_Run(self, datareader : DataReader):
+
+        self.TableFinalResults("tableresults.png")
+        self.BoxPlotResults()
+        self.BoxPlotResultsLR()
+        self.RegressionLRTruePredicted(datareader)
+        self.HeatMapLoss("HeatMapLRLossMAE.png")
+        self.RegressionLoss("Training_no_medium.png")
+
+    def ReadInfo():
         datareader = DataReader()
         dfInfo, dfMeta = datareader.visualization()
+        return datareader,dfInfo,dfMeta
+    
+    
+    def GeneralViz(datareader: DataReader, dfInfo: pd.DataFrame, dfMeta: pd.DataFrame):
         path_save_plots = os.path.join(Folders.path_save_plots, "GeneralViz")
 
         if not os.path.exists(path_save_plots):
@@ -408,21 +438,9 @@ class DataViz():
                           dfLR=pd.DataFrame(),
                           dfSTCONV=pd.DataFrame(),
                           dfCUSTOM=pd.DataFrame())
-        # General Datavizualization
-        dataviz.BoxPlotSpeed("boxplot.png")
-        dataviz.MapPlotSensors("mapplotAll.png", DatasetSize.All)
-        dataviz.MapPlotSensors("mapplotExperimental.png",
-                               DatasetSize.Experimental)
-        dataviz.MapPlotSensors("mapplotTiny.png", DatasetSize.Tiny)
-        dataviz.MapPlotSensors("mapplotSmall.png", DatasetSize.Small)
-        dataviz.MapPlotSensors("mapplotMedium.png", DatasetSize.Medium)
-        dataviz.PieChartRoadwayType("piechart.png")
-        dataviz.MapHeatmapSpeed("mapheat9.png", 9)
-        dataviz.MapHeatmapSpeed("mapheat15.png", 15)
-        dataviz.MapHeatmapSpeed("mapheat18.png", 18)
-        dataviz.MapHeatmapSpeed("mapheat22.png", 22)
-        dataviz.GraphHeatmap("graph.png", datareader)
+        dataviz.GeneralViz_Run(datareader)
 
+    def Experiment(datareader: DataReader, dfInfo: pd.DataFrame, dfMeta: pd.DataFrame):
         for experiment in os.listdir(Folders.results_ray_path):
             path_save_plots = os.path.join(Folders.path_save_plots, experiment)
 
@@ -441,10 +459,9 @@ class DataViz():
                               dfSTCONV=dfSTCONV,
                               dfCUSTOM=dfCUSTOM)
 
-            #Results Visualization
-            dataviz.TableFinalResults("tableresults.png")
-            dataviz.BoxPlotResults()
-            dataviz.BoxPlotResultsLR()
-            dataviz.RegressionLRTruePredicted(datareader)
-            dataviz.HeatMapLoss("HeatMapLRLossMAE.png")
-            dataviz.RegressionLoss("Training_no_medium.png")
+            dataviz.Experiment_Run(datareader)
+
+    def Run():
+        datareader,dfInfo,dfMeta = DataViz.RunInfo()
+        DataViz.GeneralViz(datareader,dfInfo,dfMeta)
+        DataViz.Experiment(datareader,dfInfo,dfMeta)
