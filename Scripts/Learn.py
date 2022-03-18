@@ -744,17 +744,19 @@ class Learn():
                           experiment_name=experiment_name,
                           model_type=ModelType.SARIMA)
 
-        distanceType = DistanceType.OSRM
-        datasize = DatasetSize.Medium
-        for model in ModelType:
-            if (model != ModelType.LinearRegression
-                    and model != ModelType.ARIMA
-                    and model != ModelType.SARIMA):
-                Learn.HyperParameterTuning(datasetsize=datasize,
-                                           model=model,
-                                           distanceType=distanceType,
-                                           datareader=datareader,
-                                           experiment_name=experiment_name)
+
+                                               
+        for distanceType in DistanceType:
+            for datasize in DatasetSize:
+                for model in ModelType:
+                    if (model != ModelType.LinearRegression
+                            and model != ModelType.ARIMA
+                            and model != ModelType.SARIMA):
+                        Learn.HyperParameterTuning(datasetsize=datasize,
+                                                model=model,
+                                                distanceType=distanceType,
+                                                datareader=datareader,
+                                                experiment_name=experiment_name)
 
 
 #endregion
