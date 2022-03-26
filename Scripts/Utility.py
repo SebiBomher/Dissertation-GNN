@@ -63,7 +63,10 @@ class Constants():
                                         5, 39, 40, 41, 42, 43, 45, 46, 47, 48,
                                         0, 19, 18, 36
                                     ]]
-
+    columnsInfo = [
+            "Model", "Epsilon", "Sigma", "Size", "Criterion", "Loss", "Epoch",
+            "OptimizerType", "Trial", "TestOrVal"
+        ]
 
 class Folders():
     r"""

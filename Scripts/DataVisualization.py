@@ -11,7 +11,7 @@ from sklearn.model_selection import GridSearchCV
 from Scripts.DatasetClasses import LinearRegressionDataset
 from Scripts.Learn import LossFunction
 from Scripts.Utility import DistanceType, Folders
-from Scripts.DataProccess import DataReader, DatasetSize,  Graph
+from Scripts.DataProccess import DataReader, DatasetSize, Graph
 
 #endregion
 
@@ -25,8 +25,9 @@ class DataViz():
     def __init__(self, path_data: str, graph_info_txt: str,
                  path_save_plots: str, path_processed_data: str,
                  path_results: str, dfInfo: pd.DataFrame, dfMeta: pd.DataFrame,
-                 dfLR: pd.DataFrame, dfSTCONV: pd.DataFrame,
-                 dfCUSTOM: pd.DataFrame):
+                 dfLR: pd.DataFrame, dfARIMA: pd.DataFrame,
+                 dfSARIMA: pd.DataFrame, dfSTCONV: pd.DataFrame,
+                 dfLSTM: pd.DataFrame, dfDCRNN: pd.DataFrame):
 
         self.path_data = path_data
         self.graph_info_txt = graph_info_txt
@@ -36,8 +37,11 @@ class DataViz():
         self.dfInfo = dfInfo
         self.dfMeta = dfMeta
         self.dfLR = dfLR
+        self.dfARIMA = dfARIMA
+        self.dfSARIMA = dfSARIMA
         self.dfSTCONV = dfSTCONV
-        self.dfCUSTOM = dfCUSTOM
+        self.dfLSTM = dfLSTM
+        self.dfDCRNN = dfDCRNN
 
     def BoxPlotSpeed(self, name_save: str) -> None:
         r"""
@@ -194,8 +198,11 @@ class DataViz():
             return
 
         dfLR = self.dfLR
+        dfARIMA = self.dfARIMA
+        dfSARIMA = self.dfSARIMA
         dfSTCONV = self.dfSTCONV
-        dfCUSTOM = self.dfCUSTOM
+        dfLSTM = self.dfLSTM
+        dfDCRNN = self.dfDCRNN
 
         df = pd.DataFrame(
             columns=["Type", "Size", "RMSE", "MAPE", "MAE", "MSE"])
@@ -203,8 +210,16 @@ class DataViz():
         dfLR = dfLR[["Criterion", "Loss"]]
         dfLR = dfLR.groupby(["Criterion"]).mean().T
 
+        dfARIMA = dfARIMA[["Criterion", "Loss"]]
+        dfARIMA = dfARIMA.groupby(["Criterion"]).mean().T
+
+        dfSARIMA = dfSARIMA[["Criterion", "Loss"]]
+        dfSARIMA = dfSARIMA.groupby(["Criterion"]).mean().T
+        
+
         dfSTCONV = dfSTCONV[["Criterion", "Loss", "Size"]]
-        dfCUSTOM = dfCUSTOM[["Criterion", "Loss", "Size"]]
+        dfLSTM = dfLSTM[["Criterion", "Loss", "Size"]]
+        dfDCRNN = dfDCRNN[["Criterion", "Loss", "Size"]]
 
         df = df.append(
             {
@@ -217,7 +232,32 @@ class DataViz():
             },
             ignore_index=True)
 
+        
+        df = df.append(
+            {
+                "Type": "ARIMA",
+                "Size": "All",
+                "RMSE": format((float)(dfARIMA["RMSE"].iloc[0]), '.2f'),
+                "MAPE": format((float)(dfARIMA["MAPE"].iloc[0]), '.2f'),
+                "MAE": format((float)(dfARIMA["MAE"].iloc[0]), '.2f'),
+                "MSE": format((float)(dfARIMA["MSE"].iloc[0]), '.2f')
+            },
+            ignore_index=True)
+
+        
+        df = df.append(
+            {
+                "Type": "SARIMA",
+                "Size": "All",
+                "RMSE": format((float)(dfSARIMA["RMSE"].iloc[0]), '.2f'),
+                "MAPE": format((float)(dfSARIMA["MAPE"].iloc[0]), '.2f'),
+                "MAE": format((float)(dfSARIMA["MAE"].iloc[0]), '.2f'),
+                "MSE": format((float)(dfSARIMA["MSE"].iloc[0]), '.2f')
+            },
+            ignore_index=True)
+
         for datasetsize in DatasetSize:
+            if datasetsize == DatasetSize.All: continue
             dfSTCONVTemp = dfSTCONV[dfSTCONV["Size"] == datasetsize.name]
             dfSTCONVTemp = dfSTCONVTemp[["Criterion", "Loss"]]
             dfSTCONVTemp = dfSTCONVTemp.groupby(["Criterion"]).min().T
@@ -234,22 +274,36 @@ class DataViz():
                 },
                 ignore_index=True)
 
-        for datasetsize in DatasetSize:
-            dfCUSTOMTemp = dfCUSTOM[dfCUSTOM["Size"] == datasetsize.name]
-            dfCUSTOMTemp = dfCUSTOMTemp[["Criterion", "Loss"]]
-            dfCUSTOMTemp = dfCUSTOMTemp.groupby(["Criterion"]).min().T
+            dfLSTMTemp = dfLSTM[dfLSTM["Size"] == datasetsize.name]
+            dfLSTMTemp = dfLSTMTemp[["Criterion", "Loss"]]
+            dfLSTMTemp = dfLSTMTemp.groupby(["Criterion"]).min().T
             df = df.append(
                 {
-                    "Type": "Custom",
+                    "Type": "LSTM",
                     "Size": datasetsize.name,
-                    "RMSE": format(
-                        (float)(dfCUSTOMTemp["RMSE"].iloc[0]), '.2f'),
-                    "MAPE": format(
-                        (float)(dfCUSTOMTemp["MAPE"].iloc[0]), '.2f'),
-                    "MAE": format((float)(dfCUSTOMTemp["MAE"].iloc[0]), '.2f'),
-                    "MSE": format((float)(dfCUSTOMTemp["MSE"].iloc[0]), '.2f')
+                    "RMSE": format((float)(dfLSTMTemp["RMSE"].iloc[0]), '.2f'),
+                    "MAPE": format((float)(dfLSTMTemp["MAPE"].iloc[0]), '.2f'),
+                    "MAE": format((float)(dfLSTMTemp["MAE"].iloc[0]), '.2f'),
+                    "MSE": format((float)(dfLSTMTemp["MSE"].iloc[0]), '.2f')
                 },
                 ignore_index=True)
+
+            dfDCRNNTemp = dfDCRNN[dfDCRNN["Size"] == datasetsize.name]
+            dfDCRNNTemp = dfDCRNNTemp[["Criterion", "Loss"]]
+            dfDCRNNTemp = dfDCRNNTemp.groupby(["Criterion"]).min().T
+            df = df.append(
+                {
+                    "Type": "DCRNN",
+                    "Size": datasetsize.name,
+                    "RMSE": format(
+                        (float)(dfDCRNNTemp["RMSE"].iloc[0]), '.2f'),
+                    "MAPE": format(
+                        (float)(dfDCRNNTemp["MAPE"].iloc[0]), '.2f'),
+                    "MAE": format((float)(dfDCRNNTemp["MAE"].iloc[0]), '.2f'),
+                    "MSE": format((float)(dfDCRNNTemp["MSE"].iloc[0]), '.2f')
+                },
+                ignore_index=True)
+        layout = dict(height=DataViz.calc_table_height(df)) 
         fig = go.Figure(data=[
             go.Table(header=dict(values=list(df.columns),
                                  fill_color='paleturquoise',
@@ -259,9 +313,29 @@ class DataViz():
                      ],
                                 fill_color='lavender',
                                 align='left'))
-        ])
+        ], layout=layout)
+        fig.update_layout(
+            autosize=False,
+            width=800,
+            height=800)
 
         fig.write_image(path_save)
+
+    def calc_table_height(df, base=208, height_per_row=20, char_limit=30, height_padding=16.5):
+        '''
+        df: The dataframe with only the columns you want to plot
+        base: The base height of the table (header without any rows)
+        height_per_row: The height that one row requires
+        char_limit: If the length of a value crosses this limit, the row's height needs to be expanded to fit the value
+        height_padding: Extra height in a row when a length of value exceeds char_limit
+        '''
+        total_height = 0 + base
+        for x in range(df.shape[0]):
+            total_height += height_per_row
+        for y in range(df.shape[1]):
+            if len(str(df.iloc[x][y])) > char_limit:
+                total_height += height_padding
+        return total_height
 
     def BoxPlotResultsLR(self) -> None:
         dfLR = self.dfLR
@@ -282,10 +356,14 @@ class DataViz():
 
     def BoxPlotResults(self) -> None:
         dfSTCONV = self.dfSTCONV
-        dfCUSTOM = self.dfCUSTOM
+        dfLSTM = self.dfLSTM
+        dfDCRNN = self.dfDCRNN
         dfSTCONV["Type"] = "STCONV"
-        dfCUSTOM["Type"] = "Custom"
-        df = dfSTCONV.append(dfCUSTOM, ignore_index=True)
+        dfLSTM["Type"] = "LSTM"
+        dfDCRNN["Type"] = "DCRNN"
+        df = dfSTCONV.append(dfLSTM, ignore_index=True)
+        df = df.append(dfDCRNN, ignore_index=True)
+        df = df[df["Loss"] < 20]
         for criterion in LossFunction.Criterions():
             dfTemp = df[df["Criterion"] == criterion.__name__]
             fig = px.box(dfTemp, x="Size", y="Loss", color="Type")
@@ -333,37 +411,49 @@ class DataViz():
 
     def RegressionLoss(self, name_save: str) -> None:
         path_save = os.path.join(self.path_save_plots, name_save)
-        if os.path.isfile(path_save):
-            return
-        dfCUSTOM = self.dfCUSTOM
+        if os.path.isfile(path_save): return
+        dfDCRNN = self.dfDCRNN
+        dfLSTM = self.dfLSTM
         dfSTCONV = self.dfSTCONV
         dfPlot = pd.DataFrame()
         dfPlot["Time"] = np.arange(300)
         for size in DatasetSize:
-            if size != DatasetSize.Medium:
-                dfSTCONVTemp = dfSTCONV[dfSTCONV["Criterion"] == "MAE"]
-                dfSTCONVTemp = dfSTCONVTemp[dfSTCONVTemp["Size"] == size.name]
-                dfSTCONVTemp2 = dfSTCONVTemp[["Criterion", "Loss"]]
-                dfSTCONVTemp2 = dfSTCONVTemp2.groupby(["Criterion"]).min()
-                minLoss = dfSTCONVTemp2["Loss"].iloc[0]
-                BEstTrial = dfSTCONVTemp[dfSTCONVTemp["Loss"] == minLoss]
-                df = dfSTCONVTemp[dfSTCONVTemp["Trial"] ==
-                                  BEstTrial["Trial"].iloc[0]]
-                datalist = df["Loss"].tolist()
-                datalist.extend(np.zeros(300 - len(datalist)))
-                dfPlot["STCONV_{0}".format(size.name)] = datalist
-
-            dfCUSTOMTemp = dfCUSTOM[dfCUSTOM["Criterion"] == "MAE"]
-            dfCUSTOMTemp = dfCUSTOMTemp[dfCUSTOMTemp["Size"] == size.name]
-            dfCUSTOMTemp2 = dfCUSTOMTemp[["Criterion", "Loss"]]
-            dfCUSTOMTemp2 = dfCUSTOMTemp2.groupby(["Criterion"]).min()
-            minLoss = dfCUSTOMTemp2["Loss"].iloc[0]
-            BEstTrial = dfCUSTOMTemp[dfCUSTOMTemp["Loss"] == minLoss]
-            df = dfCUSTOMTemp[dfCUSTOMTemp["Trial"] ==
-                              BEstTrial["Trial"].iloc[0]]
+            if size == DatasetSize.All: continue
+            dfSTCONVTemp = dfSTCONV[dfSTCONV["Criterion"] == "MAE"]
+            dfSTCONVTemp = dfSTCONVTemp[dfSTCONVTemp["Size"] == size.name]
+            dfSTCONVTemp2 = dfSTCONVTemp[["Criterion", "Loss"]]
+            dfSTCONVTemp2 = dfSTCONVTemp2.groupby(["Criterion"]).min()
+            minLoss = dfSTCONVTemp2["Loss"].iloc[0]
+            BEstTrial = dfSTCONVTemp[dfSTCONVTemp["Loss"] == minLoss]
+            df = dfSTCONVTemp[dfSTCONVTemp["Trial"] ==
+                                BEstTrial["Trial"].iloc[0]]
             datalist = df["Loss"].tolist()
             datalist.extend(np.zeros(300 - len(datalist)))
-            dfPlot["CUSTOM_{0}".format(size.name)] = datalist
+            dfPlot["STCONV_{0}".format(size.name)] = datalist
+
+            dfLSTMTemp = dfLSTM[dfLSTM["Criterion"] == "MAE"]
+            dfLSTMTemp = dfLSTMTemp[dfLSTMTemp["Size"] == size.name]
+            dfLSTMTemp2 = dfLSTMTemp[["Criterion", "Loss"]]
+            dfLSTMTemp2 = dfLSTMTemp2.groupby(["Criterion"]).min()
+            minLoss = dfLSTMTemp2["Loss"].iloc[0]
+            BEstTrial = dfLSTMTemp[dfLSTMTemp["Loss"] == minLoss]
+            df = dfLSTMTemp[dfLSTMTemp["Trial"] == BEstTrial["Trial"].iloc[0]]
+            datalist = df["Loss"].tolist()
+            datalist.extend(np.zeros(300 - len(datalist)))
+            dfPlot["LSTM_{0}".format(size.name)] = datalist
+
+            dfDCRNNTemp = dfDCRNN[dfDCRNN["Criterion"] == "MAE"]
+            dfDCRNNTemp = dfDCRNNTemp[dfDCRNNTemp["Size"] == size.name]
+            dfDCRNNTemp2 = dfDCRNNTemp[["Criterion", "Loss"]]
+            dfDCRNNTemp2 = dfDCRNNTemp2.groupby(["Criterion"]).min()
+            minLoss = dfDCRNNTemp2["Loss"].iloc[0]
+            BEstTrial = dfDCRNNTemp[dfDCRNNTemp["Loss"] == minLoss]
+            df = dfDCRNNTemp[dfDCRNNTemp["Trial"] ==
+                             BEstTrial["Trial"].iloc[0]]
+            datalist = df["Loss"].tolist()
+            datalist.extend(np.zeros(300 - len(datalist)))
+            dfPlot["LSTM_{0}".format(size.name)] = datalist
+
         columns = dfPlot.columns.tolist()
         columns.pop(0)
         fig = px.line(dfPlot, x="Time", y=columns)
@@ -390,13 +480,13 @@ class DataViz():
 
         fig.write_image(path_save)
 
-    def GeneralViz_Run(self, datareader : DataReader):
-        
+    def GeneralViz_Run(self, datareader: DataReader):
+
         # General Datavizualization
         self.BoxPlotSpeed("boxplot.png")
         self.MapPlotSensors("mapplotAll.png", DatasetSize.All)
         self.MapPlotSensors("mapplotExperimental.png",
-                               DatasetSize.Experimental)
+                            DatasetSize.Experimental)
         self.MapPlotSensors("mapplotTiny.png", DatasetSize.Tiny)
         self.MapPlotSensors("mapplotSmall.png", DatasetSize.Small)
         self.MapPlotSensors("mapplotMedium.png", DatasetSize.Medium)
@@ -407,7 +497,7 @@ class DataViz():
         self.MapHeatmapSpeed("mapheat22.png", 22)
         self.GraphHeatmap("graph.png", datareader)
 
-    def Experiment_Run(self, datareader : DataReader):
+    def Experiment_Run(self, datareader: DataReader):
 
         self.TableFinalResults("tableresults.png")
         self.BoxPlotResults()
@@ -419,10 +509,10 @@ class DataViz():
     def ReadInfo():
         datareader = DataReader()
         dfInfo, dfMeta = datareader.visualization()
-        return datareader,dfInfo,dfMeta
-    
-    
-    def GeneralViz(datareader: DataReader, dfInfo: pd.DataFrame, dfMeta: pd.DataFrame):
+        return datareader, dfInfo, dfMeta
+
+    def GeneralViz(datareader: DataReader, dfInfo: pd.DataFrame,
+                   dfMeta: pd.DataFrame):
         path_save_plots = os.path.join(Folders.path_save_plots, "GeneralViz")
 
         if not os.path.exists(path_save_plots):
@@ -436,18 +526,24 @@ class DataViz():
                           dfInfo=dfInfo,
                           dfMeta=dfMeta,
                           dfLR=pd.DataFrame(),
+                          dfARIMA=pd.DataFrame(),
+                          dfSARIMA=pd.DataFrame(),
                           dfSTCONV=pd.DataFrame(),
-                          dfCUSTOM=pd.DataFrame())
+                          dfLSTM=pd.DataFrame(),
+                          dfDCRNN=pd.DataFrame())
+
         dataviz.GeneralViz_Run(datareader)
 
-    def Experiment(datareader: DataReader, dfInfo: pd.DataFrame, dfMeta: pd.DataFrame):
+    def Experiment(datareader: DataReader, dfInfo: pd.DataFrame,
+                   dfMeta: pd.DataFrame):
         for experiment in os.listdir(Folders.results_ray_path):
             path_save_plots = os.path.join(Folders.path_save_plots, experiment)
 
             if not os.path.exists(path_save_plots):
                 os.makedirs(path_save_plots)
 
-            dfLR, dfSTCONV, dfCUSTOM = datareader.results(experiment)
+            dfLR, dfARIMA, dfSARIMA, dfSTCONV, dfLSTM, dfDCRNN = datareader.results(
+                experiment)
             dataviz = DataViz(path_data=Folders.path_data,
                               path_save_plots=path_save_plots,
                               path_processed_data=Folders.proccessed_data_path,
@@ -456,12 +552,15 @@ class DataViz():
                               dfInfo=dfInfo,
                               dfMeta=dfMeta,
                               dfLR=dfLR,
+                              dfARIMA=dfARIMA,
+                              dfSARIMA=dfSARIMA,
                               dfSTCONV=dfSTCONV,
-                              dfCUSTOM=dfCUSTOM)
+                              dfLSTM=dfLSTM,
+                              dfDCRNN=dfDCRNN)
 
             dataviz.Experiment_Run(datareader)
 
     def Run():
-        datareader,dfInfo,dfMeta = DataViz.RunInfo()
-        DataViz.GeneralViz(datareader,dfInfo,dfMeta)
-        DataViz.Experiment(datareader,dfInfo,dfMeta)
+        datareader, dfInfo, dfMeta = DataViz.ReadInfo()
+        # DataViz.GeneralViz(datareader,dfInfo,dfMeta)
+        DataViz.Experiment(datareader, dfInfo, dfMeta)

@@ -93,16 +93,25 @@ class DataReader():
         experiment_path = os.path.join(self.__results_path, experiment_name)
         dfLR = pd.read_csv(
             os.path.join(experiment_path, "LinearRegression.csv"))
-        columnsInfo = [
-            "Model", "Epsilon", "Sigma", "Size", "Criterion", "Loss", "Epoch",
-            "OptimizerType", "Trial", "TestOrVal"
-        ]
+        dfARIMA = pd.read_csv(
+            os.path.join(experiment_path, "ARIMA.csv"))
+        dfSARIMA = pd.read_csv(
+            os.path.join(experiment_path, "SARIMA.csv"))
+        dfSTCONV = DataReader.makeOneFile(experiment_path,
+                                          Constants.columnsInfo, "STCONV")
+        dfLSTM = DataReader.makeOneFile(experiment_path, Constants.columnsInfo,
+                                        "LSTM")
+        dfDCRNN = DataReader.makeOneFile(experiment_path,
+                                         Constants.columnsInfo, "DCRNN")
+        return dfLR,dfARIMA,dfSARIMA, dfSTCONV, dfLSTM, dfDCRNN
 
-        STCONVFile = os.path.join(experiment_path, "STCONV.csv")
-        if not (os.path.exists(STCONVFile)):
+    def makeOneFile(experiment_path: str, columnsInfo: list,
+                    type: str) -> pd.DataFrame:
+        File = os.path.join(experiment_path, f"{type}.csv")
+        if not (os.path.exists(File)):
             dataframeInfo = pd.DataFrame(columns=columnsInfo)
-            STConvFiles = os.path.join(experiment_path, "STCONV_*_*.csv")
-            for file in glob(STConvFiles):
+            Files = os.path.join(experiment_path, f"{type}*_*.csv")
+            for file in glob(Files):
                 with open(file) as f:
                     dataframeInfo = dataframeInfo.append(pd.read_csv(
                         file,
@@ -111,26 +120,8 @@ class DataReader():
                         names=columnsInfo,
                         skiprows=1),
                                                          ignore_index=True)
-            dataframeInfo.to_csv(STCONVFile)
-
-        LSTMFile = os.path.join(experiment_path, "LSTM.csv")
-        if not (os.path.exists(LSTMFile)):
-            dataframeInfo = pd.DataFrame(columns=columnsInfo)
-            LSTMFiles = os.path.join(experiment_path, "LSTM*_*.csv")
-            for file in glob(LSTMFiles):
-                with open(file) as f:
-                    dataframeInfo = dataframeInfo.append(pd.read_csv(
-                        file,
-                        sep=',',
-                        header=None,
-                        names=columnsInfo,
-                        skiprows=1),
-                                                         ignore_index=True)
-            dataframeInfo.to_csv(LSTMFile)
-
-        dfSTCONV = pd.read_csv(os.path.join(experiment_path, "STCONV.csv"))
-        dfLSTM = pd.read_csv(os.path.join(experiment_path, "LSTM.csv"))
-        return dfLR, dfSTCONV, dfLSTM
+            dataframeInfo.to_csv(File)
+        return pd.read_csv(os.path.join(experiment_path, f"{type}.csv"))
 
     def start(self) -> None:
         r"""
@@ -452,10 +443,10 @@ class Graph():
         list_to_add = Graph.__get_tuple_to_add_graph()
         if len(list_to_add) > 0:
             print("Started computing distances...")
-            self.compute_all_OSRM_and_Geodesic(DatasetSize.Experimental)
-            self.compute_all_OSRM_and_Geodesic(DatasetSize.Tiny)
-            self.compute_all_OSRM_and_Geodesic(DatasetSize.Small)
-            self.compute_all_OSRM_and_Geodesic(DatasetSize.Medium)
+            # self.compute_all_OSRM_and_Geodesic(DatasetSize.Experimental)
+            # self.compute_all_OSRM_and_Geodesic(DatasetSize.Tiny)
+            # self.compute_all_OSRM_and_Geodesic(DatasetSize.Small)
+            # self.compute_all_OSRM_and_Geodesic(DatasetSize.Medium)
             print("Finished computing distances...")
         for info in list_to_add:
             epsilon = info[0]
