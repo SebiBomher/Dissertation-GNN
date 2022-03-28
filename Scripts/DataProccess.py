@@ -359,8 +359,8 @@ class Graph():
     """
     #region Constructors & Properties
 
-    epsilon_array = [0.1, 0.3, 0.5, 0.7]
-    sigma_array = [1, 3, 5, 10]
+    epsilon_array = Constants.epsilon_array
+    sigma_array = Constants.sigma_array
 
     def __init__(self, epsilon: float, sigma: int, size: DatasetSize,
                  distanceType: DistanceType, data_reader: DataReader) -> None:

@@ -1,5 +1,6 @@
 #region Imports
 
+from black import Mode
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -10,7 +11,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GridSearchCV
 from Scripts.DatasetClasses import LinearRegressionDataset
 from Scripts.Learn import LossFunction
-from Scripts.Utility import DistanceType, Folders
+from Scripts.Utility import DistanceType, Folders, ModelType, Constants
 from Scripts.DataProccess import DataReader, DatasetSize, Graph
 
 #endregion
@@ -337,22 +338,25 @@ class DataViz():
                 total_height += height_padding
         return total_height
 
-    def BoxPlotResultsLR(self) -> None:
-        dfLR = self.dfLR
-        dfLR = dfLR[dfLR["Loss"] < 100]
+    def BoxPlotResultsNonGNN(self,model : ModelType) -> None:
+        if model == ModelType.LinearRegression:
+            df = self.dfLR
+        elif model == ModelType.ARIMA:
+            df = self.dfARIMA
+        elif model == ModelType.SARIMA:
+            df = self.dfSARIMA
+        df = df[df["Loss"] < 50]
         for criterion in LossFunction.Criterions():
-            dfTemp = dfLR[dfLR["Criterion"] == criterion.__name__]
+            dfTemp = df[df["Criterion"] == criterion.__name__]
             fig = px.box(dfTemp, x="Criterion", y="Loss")
             if not os.path.isfile(
                     os.path.join(
                         self.path_save_plots,
-                        "boxplot_result_LR_{0}.png".format(
-                            criterion.__name__))):
+                        f"boxplot_result_{model.name}_{criterion.__name__}.png")):
                 fig.write_image(
                     os.path.join(
                         self.path_save_plots,
-                        "boxplot_result_LR_{0}.png".format(
-                            criterion.__name__)))
+                        f"boxplot_result_{model.name}_{criterion.__name__}.png"))
 
     def BoxPlotResults(self) -> None:
         dfSTCONV = self.dfSTCONV
@@ -409,55 +413,39 @@ class DataViz():
             print("Regression LR True Predicted node {0}".format(node_id))
             break
 
-    def RegressionLoss(self, name_save: str) -> None:
-        path_save = os.path.join(self.path_save_plots, name_save)
-        if os.path.isfile(path_save): return
-        dfDCRNN = self.dfDCRNN
-        dfLSTM = self.dfLSTM
-        dfSTCONV = self.dfSTCONV
-        dfPlot = pd.DataFrame()
-        dfPlot["Time"] = np.arange(300)
+    def RegressionLoss(self) -> None:
+
         for size in DatasetSize:
             if size == DatasetSize.All: continue
-            dfSTCONVTemp = dfSTCONV[dfSTCONV["Criterion"] == "MAE"]
-            dfSTCONVTemp = dfSTCONVTemp[dfSTCONVTemp["Size"] == size.name]
-            dfSTCONVTemp2 = dfSTCONVTemp[["Criterion", "Loss"]]
-            dfSTCONVTemp2 = dfSTCONVTemp2.groupby(["Criterion"]).min()
-            minLoss = dfSTCONVTemp2["Loss"].iloc[0]
-            BEstTrial = dfSTCONVTemp[dfSTCONVTemp["Loss"] == minLoss]
-            df = dfSTCONVTemp[dfSTCONVTemp["Trial"] ==
-                                BEstTrial["Trial"].iloc[0]]
-            datalist = df["Loss"].tolist()
-            datalist.extend(np.zeros(300 - len(datalist)))
-            dfPlot["STCONV_{0}".format(size.name)] = datalist
+            for model in [ModelType.DCRNN,ModelType.STCONV,ModelType.LSTM]:
+                path_save = os.path.join(self.path_save_plots, f"MAE_{model.name}_{size.name}.png")
+                if os.path.isfile(path_save): continue
+                dfPlot = pd.DataFrame()
+                dfPlot["Time"] = np.arange(300)
+                if model == ModelType.DCRNN:
+                    df = self.dfDCRNN
+                elif model == ModelType.STCONV:
+                    df = self.dfSTCONV
+                elif model == ModelType.LSTM:
+                    df = self.dfLSTM
 
-            dfLSTMTemp = dfLSTM[dfLSTM["Criterion"] == "MAE"]
-            dfLSTMTemp = dfLSTMTemp[dfLSTMTemp["Size"] == size.name]
-            dfLSTMTemp2 = dfLSTMTemp[["Criterion", "Loss"]]
-            dfLSTMTemp2 = dfLSTMTemp2.groupby(["Criterion"]).min()
-            minLoss = dfLSTMTemp2["Loss"].iloc[0]
-            BEstTrial = dfLSTMTemp[dfLSTMTemp["Loss"] == minLoss]
-            df = dfLSTMTemp[dfLSTMTemp["Trial"] == BEstTrial["Trial"].iloc[0]]
-            datalist = df["Loss"].tolist()
-            datalist.extend(np.zeros(300 - len(datalist)))
-            dfPlot["LSTM_{0}".format(size.name)] = datalist
+                dfTemp = df[df["Criterion"] == "MAE"]
+                dfTemp = dfTemp[dfTemp["Size"] == size.name]
+                dfTemp2 = dfTemp[["Criterion", "Loss"]]
+                dfTemp2 = dfTemp2.groupby(["Criterion"]).min()
+                minLoss = dfTemp2["Loss"].iloc[0]
+                BEstTrial = dfTemp[dfTemp["Loss"] == minLoss]
+                df = dfTemp[dfTemp["Trial"] ==
+                                    BEstTrial["Trial"].iloc[0]]
+                datalist = df["Loss"].tolist()
+                datalist.extend(np.zeros(300 - len(datalist)))
+                dfPlot[f"{model.name}_{size.name}"] = datalist
 
-            dfDCRNNTemp = dfDCRNN[dfDCRNN["Criterion"] == "MAE"]
-            dfDCRNNTemp = dfDCRNNTemp[dfDCRNNTemp["Size"] == size.name]
-            dfDCRNNTemp2 = dfDCRNNTemp[["Criterion", "Loss"]]
-            dfDCRNNTemp2 = dfDCRNNTemp2.groupby(["Criterion"]).min()
-            minLoss = dfDCRNNTemp2["Loss"].iloc[0]
-            BEstTrial = dfDCRNNTemp[dfDCRNNTemp["Loss"] == minLoss]
-            df = dfDCRNNTemp[dfDCRNNTemp["Trial"] ==
-                             BEstTrial["Trial"].iloc[0]]
-            datalist = df["Loss"].tolist()
-            datalist.extend(np.zeros(300 - len(datalist)))
-            dfPlot["LSTM_{0}".format(size.name)] = datalist
-
-        columns = dfPlot.columns.tolist()
-        columns.pop(0)
-        fig = px.line(dfPlot, x="Time", y=columns)
-        fig.write_image(path_save)
+                columns = dfPlot.columns.tolist()
+                columns.pop(0)
+                fig = px.line(dfPlot, x="Time", y=columns)
+                
+                fig.write_image(path_save)
 
     def HeatMapLoss(self, name_save: str) -> None:
         path_save = os.path.join(self.path_save_plots, name_save)
@@ -480,8 +468,51 @@ class DataViz():
 
         fig.write_image(path_save)
 
-    def GeneralViz_Run(self, datareader: DataReader):
+    def SigmaEpsilonTable(self, name_save: str) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save): return
+        
+        dfSTCONV = self.dfSTCONV
+        dfDCRNN = self.dfDCRNN
+        dfLSTM = self.dfLSTM
+        dfResults = dfSTCONV.append(dfDCRNN,ignore_index=True)
+        dfResults = dfResults.append(dfLSTM,ignore_index=True)
+        
+        df = pd.DataFrame(columns=Constants.sigma_array,index=Constants.epsilon_array)
+        for sigma in Constants.sigma_array:
+            for epsilon in Constants.epsilon_array:
+                dfResultsTemp = dfResults[dfResults["Sigma"] == sigma]
+                dfResultsTemp = dfResultsTemp[dfResultsTemp["Epsilon"] == epsilon]
+                dfResultsTemp = dfResultsTemp.groupby(["Criterion"]).min()
+                df.loc[epsilon][sigma] = format((float)(dfResultsTemp["Loss"].iloc[0]), '.2f') 
+        headers = list(df.columns)
+        headers.insert(0,"")
+        print(headers)
+        fig = go.Figure(data=[
+            go.Table(header=dict(values=headers,
+                                 fill_color='paleturquoise',
+                                 align='left'),
+                     cells=dict(values=[
+                         Constants.epsilon_array ,df[1], df[3], df[5], df[10] 
+                     ],
+                                fill_color='lavender',
+                                align='left'))
+        ])
+        fig.write_image(path_save)
+        # TODO
 
+    def DistancesTable(self, name_save: str, model : ModelType) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save): return
+        # TODO
+
+    def GNNRegresionTrainLoss(self, name_save: str, model : ModelType) -> None:
+        path_save = os.path.join(self.path_save_plots, name_save)
+        if os.path.isfile(path_save): return
+        # TODO
+
+    def GeneralViz_Run(self, datareader: DataReader):
+        
         # General Datavizualization
         self.BoxPlotSpeed("boxplot.png")
         self.MapPlotSensors("mapplotAll.png", DatasetSize.All)
@@ -499,12 +530,20 @@ class DataViz():
 
     def Experiment_Run(self, datareader: DataReader):
 
-        self.TableFinalResults("tableresults.png")
-        self.BoxPlotResults()
-        self.BoxPlotResultsLR()
-        self.RegressionLRTruePredicted(datareader)
-        self.HeatMapLoss("HeatMapLRLossMAE.png")
-        self.RegressionLoss("Training_no_medium.png")
+        # self.TableFinalResults("tableresults.png")
+        # self.BoxPlotResults()
+        self.BoxPlotResultsNonGNN(ModelType.LinearRegression) 
+        self.BoxPlotResultsNonGNN(ModelType.ARIMA) 
+        self.BoxPlotResultsNonGNN(ModelType.SARIMA) 
+        # self.RegressionLRTruePredicted(datareader)
+        # self.HeatMapLoss("HeatMapLRLossMAE.png")
+        # self.RegressionLoss()
+        # self.SigmaEpsilonTable("SigmaEpsilonTable.png")
+        # self.DistancesTable(f"DistancesTable_{DatasetSize.Tiny}.png",DatasetSize.Tiny)
+        # self.DistancesTable(f"DistancesTable_{DatasetSize.Experimental}.png",DatasetSize.Experimental)
+        # self.GNNRegresionTrainLoss(f"{ModelType.DCRNN}_loss.png",ModelType.DCRNN)
+        # self.GNNRegresionTrainLoss(f"{ModelType.STCONV}_loss.png",ModelType.STCONV)
+        # self.GNNRegresionTrainLoss(f"{ModelType.LSTM}_loss.png",ModelType.LSTM)
 
     def ReadInfo():
         datareader = DataReader()

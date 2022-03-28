@@ -67,6 +67,8 @@ class Constants():
             "Model", "Epsilon", "Sigma", "Size", "Criterion", "Loss", "Epoch",
             "OptimizerType", "Trial", "TestOrVal"
         ]
+    epsilon_array = [0.1, 0.3, 0.5, 0.7]
+    sigma_array = [1, 3, 5, 10]
 
 class Folders():
     r"""
