@@ -4,6 +4,7 @@ import math
 import os
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from random import sample
 from typing import Tuple
 from geopy.distance import geodesic
@@ -112,14 +113,17 @@ class DataReader():
             dataframeInfo = pd.DataFrame(columns=columnsInfo)
             Files = os.path.join(experiment_path, f"{type}*_*.csv")
             for file in glob(Files):
+                distanceType = Path(file).stem.split("_")[2]
                 with open(file) as f:
-                    dataframeInfo = dataframeInfo.append(pd.read_csv(
+                    dataframeRead = pd.read_csv(
                         file,
                         sep=',',
                         header=None,
                         names=columnsInfo,
-                        skiprows=1),
-                                                         ignore_index=True)
+                        skiprows=1)
+                    dataframeRead["DistanceType"] = distanceType
+                    dataframeInfo = dataframeInfo.append(dataframeRead,ignore_index=True)
+
             dataframeInfo.to_csv(File)
         return pd.read_csv(os.path.join(experiment_path, f"{type}.csv"))
 

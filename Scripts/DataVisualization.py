@@ -176,8 +176,7 @@ class DataViz():
                                 graph, dataset)
                             fig = px.imshow(
                                 graph_matrix,
-                                title=
-                                'Graph Heatmap for epsilon {0} and sigma {1} with size {2}'
+                                title='Graph Heatmap for epsilon {0} and sigma {1} with size {2}'
                                 .format(epsilon, sigma, dataset.name))
 
                             fig.write_image("{0}_{1}_{2}_{3}.png".format(
@@ -205,8 +204,11 @@ class DataViz():
         dfLSTM = self.dfLSTM
         dfDCRNN = self.dfDCRNN
 
+        dfResults = dfSTCONV.append(dfDCRNN, ignore_index=True)
+        dfResults = dfResults.append(dfLSTM, ignore_index=True)
+
         df = pd.DataFrame(
-            columns=["Type", "Size", "RMSE", "MAPE", "MAE", "MSE"])
+            columns=["Model", "Size", "Distance", "Generation", "RMSE", "MAPE", "MAE", "MSE"])
 
         dfLR = dfLR[["Criterion", "Loss"]]
         dfLR = dfLR.groupby(["Criterion"]).mean().T
@@ -216,16 +218,13 @@ class DataViz():
 
         dfSARIMA = dfSARIMA[["Criterion", "Loss"]]
         dfSARIMA = dfSARIMA.groupby(["Criterion"]).mean().T
-        
-
-        dfSTCONV = dfSTCONV[["Criterion", "Loss", "Size"]]
-        dfLSTM = dfLSTM[["Criterion", "Loss", "Size"]]
-        dfDCRNN = dfDCRNN[["Criterion", "Loss", "Size"]]
 
         df = df.append(
             {
-                "Type": "Linear Regression",
+                "Model": "Linear Regression",
                 "Size": "All",
+                "Distance": "-",
+                "Generation": "-",
                 "RMSE": format((float)(dfLR["RMSE"].iloc[0]), '.2f'),
                 "MAPE": format((float)(dfLR["MAPE"].iloc[0]), '.2f'),
                 "MAE": format((float)(dfLR["MAE"].iloc[0]), '.2f'),
@@ -233,11 +232,12 @@ class DataViz():
             },
             ignore_index=True)
 
-        
         df = df.append(
             {
-                "Type": "ARIMA",
+                "Model": "ARIMA",
                 "Size": "All",
+                "Distance": "-",
+                "Generation": "-",
                 "RMSE": format((float)(dfARIMA["RMSE"].iloc[0]), '.2f'),
                 "MAPE": format((float)(dfARIMA["MAPE"].iloc[0]), '.2f'),
                 "MAE": format((float)(dfARIMA["MAE"].iloc[0]), '.2f'),
@@ -245,80 +245,63 @@ class DataViz():
             },
             ignore_index=True)
 
-        
         df = df.append(
             {
-                "Type": "SARIMA",
+                "Model": "SARIMA",
                 "Size": "All",
+                "Distance": "-",
+                "Generation": "-",
                 "RMSE": format((float)(dfSARIMA["RMSE"].iloc[0]), '.2f'),
                 "MAPE": format((float)(dfSARIMA["MAPE"].iloc[0]), '.2f'),
                 "MAE": format((float)(dfSARIMA["MAE"].iloc[0]), '.2f'),
                 "MSE": format((float)(dfSARIMA["MSE"].iloc[0]), '.2f')
             },
             ignore_index=True)
+        for model in [ModelType.DCRNN, ModelType.LSTM, ModelType.STCONV]:
+            for datasetsize in [DatasetSize.Experimental, DatasetSize.Tiny, DatasetSize.Small, DatasetSize.Medium]:
+                for GenerationType in ["Generative", "Manual", "LR"]:
+                    for distanceType in DistanceType:
+                        if ((datasetsize == DatasetSize.Small or datasetsize == DatasetSize.Medium) and (GenerationType == "Manual" or GenerationType == "LR")):
+                            continue
+                        if not (GenerationType == "Generative"):
+                            datasetName = f"{datasetsize.name}{GenerationType}"
+                        else:
+                            datasetName = datasetsize.name
+                        dfResultsTemp = dfResults[dfResults["Model"]
+                                                  == model.name]
+                        dfResultsTemp = dfResultsTemp[dfResultsTemp["Size"]
+                                                      == datasetName]
+                        dfResultsTemp = dfResultsTemp[dfResultsTemp["DistanceType"]
+                                                      == distanceType.name]
+                        dfResultsTemp = dfResultsTemp[["Criterion", "Loss"]]
+                        dfResultsTemp = dfResultsTemp.groupby(
+                            ["Criterion"]).min().T
+                        df = df.append(
+                            {
+                                "Model": model.name,
+                                "Size": datasetsize.name,
+                                "Distance": distanceType.name,
+                                "Generation": GenerationType,
+                                "RMSE": format(
+                                    (float)(dfResultsTemp["RMSE"].iloc[0]), '.2f'),
+                                "MAPE": format(
+                                    (float)(dfResultsTemp["MAPE"].iloc[0]), '.2f'),
+                                "MAE": format((float)(dfResultsTemp["MAE"].iloc[0]), '.2f'),
+                                "MSE": format((float)(dfResultsTemp["MSE"].iloc[0]), '.2f')
+                            },
+                            ignore_index=True)
 
-        for datasetsize in DatasetSize:
-            if datasetsize == DatasetSize.All: continue
-            dfSTCONVTemp = dfSTCONV[dfSTCONV["Size"] == datasetsize.name]
-            dfSTCONVTemp = dfSTCONVTemp[["Criterion", "Loss"]]
-            dfSTCONVTemp = dfSTCONVTemp.groupby(["Criterion"]).min().T
-            df = df.append(
-                {
-                    "Type": "STCONV",
-                    "Size": datasetsize.name,
-                    "RMSE": format(
-                        (float)(dfSTCONVTemp["RMSE"].iloc[0]), '.2f'),
-                    "MAPE": format(
-                        (float)(dfSTCONVTemp["MAPE"].iloc[0]), '.2f'),
-                    "MAE": format((float)(dfSTCONVTemp["MAE"].iloc[0]), '.2f'),
-                    "MSE": format((float)(dfSTCONVTemp["MSE"].iloc[0]), '.2f')
-                },
-                ignore_index=True)
-
-            dfLSTMTemp = dfLSTM[dfLSTM["Size"] == datasetsize.name]
-            dfLSTMTemp = dfLSTMTemp[["Criterion", "Loss"]]
-            dfLSTMTemp = dfLSTMTemp.groupby(["Criterion"]).min().T
-            df = df.append(
-                {
-                    "Type": "LSTM",
-                    "Size": datasetsize.name,
-                    "RMSE": format((float)(dfLSTMTemp["RMSE"].iloc[0]), '.2f'),
-                    "MAPE": format((float)(dfLSTMTemp["MAPE"].iloc[0]), '.2f'),
-                    "MAE": format((float)(dfLSTMTemp["MAE"].iloc[0]), '.2f'),
-                    "MSE": format((float)(dfLSTMTemp["MSE"].iloc[0]), '.2f')
-                },
-                ignore_index=True)
-
-            dfDCRNNTemp = dfDCRNN[dfDCRNN["Size"] == datasetsize.name]
-            dfDCRNNTemp = dfDCRNNTemp[["Criterion", "Loss"]]
-            dfDCRNNTemp = dfDCRNNTemp.groupby(["Criterion"]).min().T
-            df = df.append(
-                {
-                    "Type": "DCRNN",
-                    "Size": datasetsize.name,
-                    "RMSE": format(
-                        (float)(dfDCRNNTemp["RMSE"].iloc[0]), '.2f'),
-                    "MAPE": format(
-                        (float)(dfDCRNNTemp["MAPE"].iloc[0]), '.2f'),
-                    "MAE": format((float)(dfDCRNNTemp["MAE"].iloc[0]), '.2f'),
-                    "MSE": format((float)(dfDCRNNTemp["MSE"].iloc[0]), '.2f')
-                },
-                ignore_index=True)
-        layout = dict(height=DataViz.calc_table_height(df)) 
+        layout = dict(height=DataViz.calc_table_height(df) + 300)
         fig = go.Figure(data=[
             go.Table(header=dict(values=list(df.columns),
                                  fill_color='paleturquoise',
                                  align='left'),
                      cells=dict(values=[
-                         df.Type, df.Size, df.RMSE, df.MAPE, df.MAE, df.MSE
+                         df.Model, df.Size, df.Distance, df.Generation, df.RMSE, df.MAPE, df.MAE, df.MSE
                      ],
-                                fill_color='lavender',
-                                align='left'))
+                fill_color='lavender',
+                align='left'))
         ], layout=layout)
-        fig.update_layout(
-            autosize=False,
-            width=800,
-            height=800)
 
         fig.write_image(path_save)
 
@@ -338,7 +321,7 @@ class DataViz():
                 total_height += height_padding
         return total_height
 
-    def BoxPlotResultsNonGNN(self,model : ModelType) -> None:
+    def BoxPlotResultsNonGNN(self, model: ModelType) -> None:
         if model == ModelType.LinearRegression:
             df = self.dfLR
         elif model == ModelType.ARIMA:
@@ -358,7 +341,7 @@ class DataViz():
                         self.path_save_plots,
                         f"boxplot_result_{model.name}_{criterion.__name__}.png"))
 
-    def BoxPlotResults(self) -> None:
+    def BoxPlotResults(self, distanceType : DistanceType) -> None:
         dfSTCONV = self.dfSTCONV
         dfLSTM = self.dfLSTM
         dfDCRNN = self.dfDCRNN
@@ -367,18 +350,14 @@ class DataViz():
         dfDCRNN["Type"] = "DCRNN"
         df = dfSTCONV.append(dfLSTM, ignore_index=True)
         df = df.append(dfDCRNN, ignore_index=True)
+        df = df[df["DistanceType"] == distanceType.name]
         df = df[df["Loss"] < 20]
         for criterion in LossFunction.Criterions():
             dfTemp = df[df["Criterion"] == criterion.__name__]
             fig = px.box(dfTemp, x="Size", y="Loss", color="Type")
-            if not os.path.isfile(
-                    os.path.join(
-                        self.path_save_plots, "boxplot_result_{0}.png".format(
-                            criterion.__name__))):
-                fig.write_image(
-                    os.path.join(
-                        self.path_save_plots,
-                        "boxplot_result_{0}.png".format(criterion.__name__)))
+            filename = os.path.join(self.path_save_plots,f"boxplot_result_{criterion.__name__}_{distanceType.name}.png")
+            if not os.path.isfile(filename):
+                fig.write_image(filename)
 
     def RegressionLRTruePredicted(self, datareader: DataReader) -> None:
 
@@ -413,15 +392,16 @@ class DataViz():
             print("Regression LR True Predicted node {0}".format(node_id))
             break
 
-    def RegressionLoss(self) -> None:
+    def GNNRegresionTrainLoss(self) -> None:
 
         for size in DatasetSize:
             if size == DatasetSize.All: continue
-            for model in [ModelType.DCRNN,ModelType.STCONV,ModelType.LSTM]:
-                path_save = os.path.join(self.path_save_plots, f"MAE_{model.name}_{size.name}.png")
-                if os.path.isfile(path_save): continue
+            for model in [ModelType.DCRNN, ModelType.STCONV, ModelType.LSTM]:
+                path_save = os.path.join(
+                    self.path_save_plots, f"MAE_{model.name}_{size.name}.png")
+                if os.path.isfile(path_save):
+                    continue
                 dfPlot = pd.DataFrame()
-                dfPlot["Time"] = np.arange(300)
                 if model == ModelType.DCRNN:
                     df = self.dfDCRNN
                 elif model == ModelType.STCONV:
@@ -434,17 +414,15 @@ class DataViz():
                 dfTemp2 = dfTemp[["Criterion", "Loss"]]
                 dfTemp2 = dfTemp2.groupby(["Criterion"]).min()
                 minLoss = dfTemp2["Loss"].iloc[0]
-                BEstTrial = dfTemp[dfTemp["Loss"] == minLoss]
+                BestTrial = dfTemp[dfTemp["Loss"] == minLoss]
                 df = dfTemp[dfTemp["Trial"] ==
-                                    BEstTrial["Trial"].iloc[0]]
+                            BestTrial["Trial"].iloc[0]]
                 datalist = df["Loss"].tolist()
-                datalist.extend(np.zeros(300 - len(datalist)))
-                dfPlot[f"{model.name}_{size.name}"] = datalist
+                dfPlot["Loss"] = datalist
+                dfPlot["Time"] = np.arange(1,len(datalist) + 1)
 
-                columns = dfPlot.columns.tolist()
-                columns.pop(0)
-                fig = px.line(dfPlot, x="Time", y=columns)
-                
+                fig = px.line(dfPlot, x="Time", y="Loss")
+
                 fig.write_image(path_save)
 
     def HeatMapLoss(self, name_save: str) -> None:
@@ -470,49 +448,42 @@ class DataViz():
 
     def SigmaEpsilonTable(self, name_save: str) -> None:
         path_save = os.path.join(self.path_save_plots, name_save)
-        if os.path.isfile(path_save): return
-        
+        if os.path.isfile(path_save):
+            return
+
         dfSTCONV = self.dfSTCONV
         dfDCRNN = self.dfDCRNN
         dfLSTM = self.dfLSTM
-        dfResults = dfSTCONV.append(dfDCRNN,ignore_index=True)
-        dfResults = dfResults.append(dfLSTM,ignore_index=True)
-        
-        df = pd.DataFrame(columns=Constants.sigma_array,index=Constants.epsilon_array)
+        dfResults = dfSTCONV.append(dfDCRNN, ignore_index=True)
+        dfResults = dfResults.append(dfLSTM, ignore_index=True)
+
+        df = pd.DataFrame(columns=Constants.sigma_array,
+                          index=Constants.epsilon_array)
         for sigma in Constants.sigma_array:
             for epsilon in Constants.epsilon_array:
                 dfResultsTemp = dfResults[dfResults["Sigma"] == sigma]
                 dfResultsTemp = dfResultsTemp[dfResultsTemp["Epsilon"] == epsilon]
                 dfResultsTemp = dfResultsTemp.groupby(["Criterion"]).min()
-                df.loc[epsilon][sigma] = format((float)(dfResultsTemp["Loss"].iloc[0]), '.2f') 
+                df.loc[epsilon][sigma] = format(
+                    (float)(dfResultsTemp["Loss"].iloc[0]), '.2f')
         headers = list(df.columns)
-        headers.insert(0,"")
+        headers.insert(0, "")
         print(headers)
         fig = go.Figure(data=[
             go.Table(header=dict(values=headers,
                                  fill_color='paleturquoise',
                                  align='left'),
                      cells=dict(values=[
-                         Constants.epsilon_array ,df[1], df[3], df[5], df[10] 
+                         Constants.epsilon_array, df[1], df[3], df[5], df[10]
                      ],
-                                fill_color='lavender',
-                                align='left'))
+                fill_color='lavender',
+                align='left'))
         ])
         fig.write_image(path_save)
         # TODO
 
-    def DistancesTable(self, name_save: str, model : ModelType) -> None:
-        path_save = os.path.join(self.path_save_plots, name_save)
-        if os.path.isfile(path_save): return
-        # TODO
-
-    def GNNRegresionTrainLoss(self, name_save: str, model : ModelType) -> None:
-        path_save = os.path.join(self.path_save_plots, name_save)
-        if os.path.isfile(path_save): return
-        # TODO
-
     def GeneralViz_Run(self, datareader: DataReader):
-        
+
         # General Datavizualization
         self.BoxPlotSpeed("boxplot.png")
         self.MapPlotSensors("mapplotAll.png", DatasetSize.All)
@@ -530,20 +501,16 @@ class DataViz():
 
     def Experiment_Run(self, datareader: DataReader):
 
-        # self.TableFinalResults("tableresults.png")
-        # self.BoxPlotResults()
-        self.BoxPlotResultsNonGNN(ModelType.LinearRegression) 
-        self.BoxPlotResultsNonGNN(ModelType.ARIMA) 
-        self.BoxPlotResultsNonGNN(ModelType.SARIMA) 
-        # self.RegressionLRTruePredicted(datareader)
-        # self.HeatMapLoss("HeatMapLRLossMAE.png")
-        # self.RegressionLoss()
-        # self.SigmaEpsilonTable("SigmaEpsilonTable.png")
-        # self.DistancesTable(f"DistancesTable_{DatasetSize.Tiny}.png",DatasetSize.Tiny)
-        # self.DistancesTable(f"DistancesTable_{DatasetSize.Experimental}.png",DatasetSize.Experimental)
-        # self.GNNRegresionTrainLoss(f"{ModelType.DCRNN}_loss.png",ModelType.DCRNN)
-        # self.GNNRegresionTrainLoss(f"{ModelType.STCONV}_loss.png",ModelType.STCONV)
-        # self.GNNRegresionTrainLoss(f"{ModelType.LSTM}_loss.png",ModelType.LSTM)
+        self.TableFinalResults("tableresults.png")
+        self.BoxPlotResults(DistanceType.Geodesic)
+        self.BoxPlotResults(DistanceType.OSRM)
+        self.BoxPlotResultsNonGNN(ModelType.LinearRegression)
+        self.BoxPlotResultsNonGNN(ModelType.ARIMA)
+        self.BoxPlotResultsNonGNN(ModelType.SARIMA)
+        self.RegressionLRTruePredicted(datareader)
+        self.HeatMapLoss("HeatMapLRLossMAE.png")
+        self.SigmaEpsilonTable("SigmaEpsilonTable.png")
+        self.GNNRegresionTrainLoss()
 
     def ReadInfo():
         datareader = DataReader()
