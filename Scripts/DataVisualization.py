@@ -328,7 +328,6 @@ class DataViz():
             df = self.dfARIMA
         elif model == ModelType.SARIMA:
             df = self.dfSARIMA
-        df = df[df["Loss"] < 50]
         for criterion in LossFunction.Criterions():
             dfTemp = df[df["Criterion"] == criterion.__name__]
             fig = px.box(dfTemp, x="Criterion", y="Loss")
@@ -351,7 +350,7 @@ class DataViz():
         df = dfSTCONV.append(dfLSTM, ignore_index=True)
         df = df.append(dfDCRNN, ignore_index=True)
         df = df[df["DistanceType"] == distanceType.name]
-        df = df[df["Loss"] < 20]
+        df = df[df["Loss"] < 100]
         for criterion in LossFunction.Criterions():
             dfTemp = df[df["Criterion"] == criterion.__name__]
             fig = px.box(dfTemp, x="Size", y="Loss", color="Type")
@@ -425,14 +424,20 @@ class DataViz():
 
                 fig.write_image(path_save)
 
-    def HeatMapLoss(self, name_save: str) -> None:
+    def HeatMapLoss(self, model : ModelType) -> None:
+        name_save = f"HeatMap{model.name}.png"
         path_save = os.path.join(self.path_save_plots, name_save)
         if os.path.isfile(path_save):
             return
-        dfInfo = self.dfLR
+        if model == ModelType.LinearRegression:
+            dfInfo = self.dfLR
+        elif model == ModelType.ARIMA:
+            dfInfo = self.dfARIMA
+        elif model == ModelType.SARIMA:
+            dfInfo = self.dfSARIMA
         dfMeta = self.dfMeta
         dfInfo = dfInfo[dfInfo["Criterion"] == "MAE"]
-        dfInfo = dfInfo[dfInfo["Loss"] < 20]
+        # dfInfo = dfInfo[dfInfo["Loss"] < 20]
         df = pd.merge(dfMeta, dfInfo, left_on='ID', right_on='Node_Id')
         fig = px.scatter_mapbox(
             df,
@@ -442,7 +447,7 @@ class DataViz():
             color_continuous_scale=px.colors.sequential.Bluered,
             zoom=8,
             mapbox_style="open-street-map",
-            title='Map for Loss MAE')
+            title=f'Map for Loss {model.name}')
 
         fig.write_image(path_save)
 
@@ -501,16 +506,18 @@ class DataViz():
 
     def Experiment_Run(self, datareader: DataReader):
 
-        self.TableFinalResults("tableresults.png")
-        self.BoxPlotResults(DistanceType.Geodesic)
-        self.BoxPlotResults(DistanceType.OSRM)
-        self.BoxPlotResultsNonGNN(ModelType.LinearRegression)
+        # self.TableFinalResults("tableresults.png")
+        # self.BoxPlotResults(DistanceType.Geodesic)
+        # self.BoxPlotResults(DistanceType.OSRM)
+        # self.BoxPlotResultsNonGNN(ModelType.LinearRegression)
         self.BoxPlotResultsNonGNN(ModelType.ARIMA)
         self.BoxPlotResultsNonGNN(ModelType.SARIMA)
-        self.RegressionLRTruePredicted(datareader)
-        self.HeatMapLoss("HeatMapLRLossMAE.png")
-        self.SigmaEpsilonTable("SigmaEpsilonTable.png")
-        self.GNNRegresionTrainLoss()
+        # self.RegressionLRTruePredicted(datareader)
+        # self.HeatMapLoss(ModelType.LinearRegression)
+        # self.HeatMapLoss(ModelType.ARIMA)
+        # self.HeatMapLoss(ModelType.SARIMA)
+        # self.SigmaEpsilonTable("SigmaEpsilonTable.png")
+        # self.GNNRegresionTrainLoss()
 
     def ReadInfo():
         datareader = DataReader()
