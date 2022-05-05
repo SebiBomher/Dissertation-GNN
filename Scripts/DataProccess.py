@@ -447,10 +447,10 @@ class Graph():
         list_to_add = Graph.__get_tuple_to_add_graph()
         if len(list_to_add) > 0:
             print("Started computing distances...")
-            # self.compute_all_OSRM_and_Geodesic(DatasetSize.Experimental)
-            # self.compute_all_OSRM_and_Geodesic(DatasetSize.Tiny)
-            # self.compute_all_OSRM_and_Geodesic(DatasetSize.Small)
-            # self.compute_all_OSRM_and_Geodesic(DatasetSize.Medium)
+            self.compute_all_OSRM_and_Geodesic(DatasetSize.Experimental)
+            self.compute_all_OSRM_and_Geodesic(DatasetSize.Tiny)
+            self.compute_all_OSRM_and_Geodesic(DatasetSize.Small)
+            self.compute_all_OSRM_and_Geodesic(DatasetSize.Medium)
             print("Finished computing distances...")
         for info in list_to_add:
             epsilon = info[0]
