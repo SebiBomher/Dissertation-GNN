@@ -506,18 +506,18 @@ class DataViz():
 
     def Experiment_Run(self, datareader: DataReader):
 
-        # self.TableFinalResults("tableresults.png")
-        # self.BoxPlotResults(DistanceType.Geodesic)
-        # self.BoxPlotResults(DistanceType.OSRM)
-        # self.BoxPlotResultsNonGNN(ModelType.LinearRegression)
+        self.TableFinalResults("tableresults.png")
+        self.BoxPlotResults(DistanceType.Geodesic)
+        self.BoxPlotResults(DistanceType.OSRM)
+        self.BoxPlotResultsNonGNN(ModelType.LinearRegression)
         self.BoxPlotResultsNonGNN(ModelType.ARIMA)
         self.BoxPlotResultsNonGNN(ModelType.SARIMA)
-        # self.RegressionLRTruePredicted(datareader)
-        # self.HeatMapLoss(ModelType.LinearRegression)
-        # self.HeatMapLoss(ModelType.ARIMA)
-        # self.HeatMapLoss(ModelType.SARIMA)
-        # self.SigmaEpsilonTable("SigmaEpsilonTable.png")
-        # self.GNNRegresionTrainLoss()
+        self.RegressionLRTruePredicted(datareader)
+        self.HeatMapLoss(ModelType.LinearRegression)
+        self.HeatMapLoss(ModelType.ARIMA)
+        self.HeatMapLoss(ModelType.SARIMA)
+        self.SigmaEpsilonTable("SigmaEpsilonTable.png")
+        self.GNNRegresionTrainLoss()
 
     def ReadInfo():
         datareader = DataReader()
@@ -575,5 +575,5 @@ class DataViz():
 
     def Run():
         datareader, dfInfo, dfMeta = DataViz.ReadInfo()
-        # DataViz.GeneralViz(datareader,dfInfo,dfMeta)
+        DataViz.GeneralViz(datareader,dfInfo,dfMeta)
         DataViz.Experiment(datareader, dfInfo, dfMeta)
