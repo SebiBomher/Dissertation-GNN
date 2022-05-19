@@ -127,3 +127,6 @@ Results-RAY/*
 Plots/Old
 Dissertation_Docs/*.png
 Dissertation_Docs/*.jpg
+*.pdf
+.gitignore
+*.tmp
