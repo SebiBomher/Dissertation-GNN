@@ -267,6 +267,10 @@ class DataViz():
                             datasetName = f"{datasetsize.name}{GenerationType}"
                         else:
                             datasetName = datasetsize.name
+                        if (model == ModelType.LSTM):
+                            modelName = "GCLSTM"
+                        else:
+                            modelName = model.name
                         dfResultsTemp = dfResults[dfResults["Model"]
                                                   == model.name]
                         dfResultsTemp = dfResultsTemp[dfResultsTemp["Size"]
@@ -278,7 +282,7 @@ class DataViz():
                             ["Criterion"]).min().T
                         df = df.append(
                             {
-                                "Model": model.name,
+                                "Model": modelName,
                                 "Size": datasetsize.name,
                                 "Distance": distanceType.name,
                                 "Generation": GenerationType,
@@ -345,12 +349,12 @@ class DataViz():
         dfLSTM = self.dfLSTM
         dfDCRNN = self.dfDCRNN
         dfSTCONV["Type"] = "STCONV"
-        dfLSTM["Type"] = "LSTM"
+        dfLSTM["Type"] = "GCLSTM"
         dfDCRNN["Type"] = "DCRNN"
         df = dfSTCONV.append(dfLSTM, ignore_index=True)
         df = df.append(dfDCRNN, ignore_index=True)
         df = df[df["DistanceType"] == distanceType.name]
-        df = df[df["Loss"] < 100]
+        df = df[df["Loss"] < 20]
         for criterion in LossFunction.Criterions():
             dfTemp = df[df["Criterion"] == criterion.__name__]
             fig = px.box(dfTemp, x="Size", y="Loss", color="Type")
@@ -506,18 +510,18 @@ class DataViz():
 
     def Experiment_Run(self, datareader: DataReader):
 
-        self.TableFinalResults("tableresults.png")
-        self.BoxPlotResults(DistanceType.Geodesic)
+        # self.TableFinalResults("tableresults.png")
+        # self.BoxPlotResults(DistanceType.Geodesic)
         self.BoxPlotResults(DistanceType.OSRM)
-        self.BoxPlotResultsNonGNN(ModelType.LinearRegression)
-        self.BoxPlotResultsNonGNN(ModelType.ARIMA)
-        self.BoxPlotResultsNonGNN(ModelType.SARIMA)
-        self.RegressionLRTruePredicted(datareader)
-        self.HeatMapLoss(ModelType.LinearRegression)
-        self.HeatMapLoss(ModelType.ARIMA)
-        self.HeatMapLoss(ModelType.SARIMA)
-        self.SigmaEpsilonTable("SigmaEpsilonTable.png")
-        self.GNNRegresionTrainLoss()
+        # self.BoxPlotResultsNonGNN(ModelType.LinearRegression)
+        # self.BoxPlotResultsNonGNN(ModelType.ARIMA)
+        # self.BoxPlotResultsNonGNN(ModelType.SARIMA)
+        # self.RegressionLRTruePredicted(datareader)
+        # self.HeatMapLoss(ModelType.LinearRegression)
+        # self.HeatMapLoss(ModelType.ARIMA)
+        # self.HeatMapLoss(ModelType.SARIMA)
+        # self.SigmaEpsilonTable("SigmaEpsilonTable.png")
+        # self.GNNRegresionTrainLoss()
 
     def ReadInfo():
         datareader = DataReader()
@@ -575,5 +579,5 @@ class DataViz():
 
     def Run():
         datareader, dfInfo, dfMeta = DataViz.ReadInfo()
-        DataViz.GeneralViz(datareader,dfInfo,dfMeta)
+        # DataViz.GeneralViz(datareader,dfInfo,dfMeta)
         DataViz.Experiment(datareader, dfInfo, dfMeta)
