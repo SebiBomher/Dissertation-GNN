@@ -130,3 +130,8 @@ Dissertation_Docs/*.jpg
 *.pdf
 .gitignore
 *.tmp
+Dissertation-GNN-VEHITS/Data
+Dissertation-GNN-VEHITS/Processed
+Dissertation-GNN-VEHITS/Results-Ray
+Dissertation-GNN-VEHITS/Results
+Dissertation-GNN-VEHITS/Plots
